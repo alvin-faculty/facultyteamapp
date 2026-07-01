@@ -16,6 +16,7 @@ export default async function LoginPage({
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">Faculty Team</CardTitle>
+          <span className="sr-only">deploy-check-1</span>
         </CardHeader>
         <CardContent>
           <form action={login} className="space-y-4">
