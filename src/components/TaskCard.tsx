@@ -1,92 +1,127 @@
 "use client";
 
-import { useState } from "react";
-import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TaskCommentThread } from "@/components/TaskCommentThread";
+import { useTransition } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toggleTaskCompleted } from "@/lib/actions/tasks";
+import { sectionBorderColorClass } from "@/lib/section-color";
+import { profileColorClass } from "@/lib/profile-color";
 import { formatDate } from "@/lib/format";
-import type { Profile, Task, TaskComment } from "@/lib/supabase/types";
+import { cn } from "@/lib/utils";
+import type { Profile, Task } from "@/lib/supabase/types";
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+function MetaLine({
+  task,
+  assignee,
+  commentCount,
+}: {
+  task: Task;
+  assignee: Profile | null;
+  commentCount: number;
+}) {
+  const overdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed;
+  if (!assignee && !task.due_date && commentCount === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+      {assignee && (
+        <>
+          <span className={cn("size-2 shrink-0 rounded-full", profileColorClass(assignee.id))} />
+          <span className="truncate">{assignee.name}</span>
+        </>
+      )}
+      {task.due_date && (
+        <span className={cn("whitespace-nowrap", overdue && "font-semibold text-destructive")}>
+          {assignee ? "· " : ""}
+          {formatDate(task.due_date)}
+        </span>
+      )}
+      {commentCount > 0 && (
+        <span className="whitespace-nowrap">
+          {assignee || task.due_date ? "· " : ""}
+          {commentCount} {commentCount === 1 ? "note" : "notes"}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function TaskCard({
   task,
   projectId,
   assignee,
-  comments,
+  commentCount = 0,
+  sectionColorIndex = 0,
+  indented = false,
+  onClick,
 }: {
   task: Task;
   projectId: string;
   assignee: Profile | null;
-  comments: (TaskComment & { profiles?: { name: string } | null })[];
+  commentCount?: number;
+  sectionColorIndex?: number;
+  indented?: boolean;
+  onClick?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-  });
+  const [isPending, startTransition] = useTransition();
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const checkbox = (
+    <Checkbox
+      checked={task.completed}
+      disabled={isPending}
+      onClick={(e) => e.stopPropagation()}
+      onCheckedChange={(checked) =>
+        startTransition(() => toggleTaskCompleted(task.id, projectId, checked === true))
+      }
+      className="mt-0.5 size-4 rounded-full border-2"
+    />
+  );
 
-  const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
+  const title = (
+    <p
+      className={cn(
+        "text-[13px]",
+        indented ? "text-muted-foreground" : "font-medium",
+        task.completed && "text-muted-foreground line-through",
+      )}
+    >
+      {task.title}
+    </p>
+  );
+
+  if (indented) {
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          "ml-6 flex items-start gap-2 rounded-md border-l py-1 pl-3",
+          onClick && "cursor-pointer hover:bg-muted/50",
+        )}
+      >
+        {checkbox}
+        <div className="min-w-0 flex-1 space-y-0.5">
+          {title}
+          <MetaLine task={task} assignee={assignee} commentCount={commentCount} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Card
-        ref={setNodeRef}
-        style={style}
-        {...listeners}
-        {...attributes}
-        onClick={() => !isDragging && setOpen(true)}
-        className="cursor-grab touch-none py-3 active:cursor-grabbing"
-      >
-        <CardContent className="space-y-2 px-3">
-          <p className="text-sm font-medium">{task.title}</p>
-          <div className="flex items-center justify-between">
-            {task.due_date ? (
-              <Badge variant={overdue ? "destructive" : "outline"} className="text-xs">
-                {formatDate(task.due_date)}
-              </Badge>
-            ) : (
-              <span />
-            )}
-            {assignee && (
-              <Avatar className="size-6">
-                <AvatarFallback className="text-[10px]">{initials(assignee.name)}</AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{task.title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
-            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-              {assignee && <span>Assigned to {assignee.name}</span>}
-              {task.due_date && <span>Due {formatDate(task.due_date)}</span>}
-            </div>
-            <TaskCommentThread projectId={projectId} taskId={task.id} comments={comments} />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <div
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border border-l-4 bg-card px-3 py-2.5",
+        sectionBorderColorClass(sectionColorIndex),
+        onClick && "cursor-pointer transition-colors hover:bg-muted/40",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        {checkbox}
+        <div className="min-w-0 flex-1 space-y-1">
+          {title}
+          <MetaLine task={task} assignee={assignee} commentCount={commentCount} />
+        </div>
+      </div>
+    </div>
   );
 }

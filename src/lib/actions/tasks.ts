@@ -1,30 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import type { TaskStatus } from "@/lib/supabase/types";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function createTask(projectId: string, formData: FormData) {
-  const supabase = await createClient();
+export async function createTask(projectId: string, sectionId: string, formData: FormData) {
+  const supabase = await createSupabaseServerClient();
 
   const title = String(formData.get("title"));
-  const description = (formData.get("description") as string) || null;
-  const assignee_id = (formData.get("assignee_id") as string) || null;
+  const assigneeRaw = formData.get("assignee_id") as string;
+  const assignee_id = assigneeRaw && assigneeRaw !== "none" ? assigneeRaw : null;
   const due_date = (formData.get("due_date") as string) || null;
 
   const { count } = await supabase
     .from("tasks")
     .select("id", { count: "exact", head: true })
-    .eq("project_id", projectId)
-    .eq("status", "todo");
+    .eq("section_id", sectionId);
 
   const { error } = await supabase.from("tasks").insert({
     project_id: projectId,
+    section_id: sectionId,
     title,
-    description,
     assignee_id,
     due_date,
-    status: "todo",
     position: count ?? 0,
   });
 
@@ -35,28 +32,84 @@ export async function createTask(projectId: string, formData: FormData) {
 export async function moveTask(
   projectId: string,
   taskId: string,
-  status: TaskStatus,
+  sectionId: string,
   position: number,
 ) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("tasks").update({ status, position }).eq("id", taskId);
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ section_id: sectionId, position })
+    .eq("id", taskId);
+
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function addTaskComment(projectId: string, taskId: string, formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+export async function toggleTaskCompleted(taskId: string, projectId: string, completed: boolean) {
+  const supabase = await createSupabaseServerClient();
 
-  const body = String(formData.get("body"));
-  if (!body.trim()) return;
+  const { error } = await supabase.from("tasks").update({ completed }).eq("id", taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function createSubtask(projectId: string, parentTaskId: string, title: string) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase.from("tasks").insert({
+    project_id: projectId,
+    parent_task_id: parentTaskId,
+    section_id: null,
+    title,
+    position: 0,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateTaskDescription(taskId: string, projectId: string, description: string) {
+  const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("task_comments")
-    .insert({ task_id: taskId, user_id: user.id, body });
+    .from("tasks")
+    .update({ description: description || null })
+    .eq("id", taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateTaskDueDate(taskId: string, projectId: string, dueDate: string) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ due_date: dueDate || null })
+    .eq("id", taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateTaskAssignee(taskId: string, projectId: string, assigneeId: string | null) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ assignee_id: assigneeId })
+    .eq("id", taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteTask(taskId: string, projectId: string) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);

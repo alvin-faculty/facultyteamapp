@@ -5,7 +5,6 @@ import { createTask } from "@/lib/actions/tasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -23,18 +22,25 @@ import {
 import { Plus } from "lucide-react";
 import type { Profile } from "@/lib/supabase/types";
 
-export function NewTaskDialog({ projectId, profiles }: { projectId: string; profiles: Profile[] }) {
+export function NewTaskDialog({
+  projectId,
+  sectionId,
+  profiles,
+}: {
+  projectId: string;
+  sectionId: string;
+  profiles: Profile[];
+}) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const action = createTask.bind(null, projectId);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" variant="outline">
+          <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground">
             <Plus className="size-4" />
-            New task
+            Add task
           </Button>
         }
       />
@@ -45,7 +51,7 @@ export function NewTaskDialog({ projectId, profiles }: { projectId: string; prof
         <form
           action={(formData) =>
             startTransition(async () => {
-              await action(formData);
+              await createTask(projectId, sectionId, formData);
               setOpen(false);
             })
           }
@@ -56,32 +62,31 @@ export function NewTaskDialog({ projectId, profiles }: { projectId: string; prof
             <Input id="title" name="title" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" name="description" />
+            <Label htmlFor="assignee_id">Assignee</Label>
+            <Select
+              name="assignee_id"
+              items={{ none: "Unassigned", ...Object.fromEntries(profiles.map((p) => [p.id, p.name])) }}
+              defaultValue="none"
+            >
+              <SelectTrigger id="assignee_id" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="assignee_id">Assignee</Label>
-              <Select name="assignee_id">
-                <SelectTrigger id="assignee_id" className="w-full">
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="due_date">Due date</Label>
-              <Input id="due_date" name="due_date" type="date" />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="due_date">Due date</Label>
+            <Input id="due_date" name="due_date" type="date" />
           </div>
           <Button type="submit" disabled={isPending} className="w-full">
-            Add task
+            Create task
           </Button>
         </form>
       </DialogContent>

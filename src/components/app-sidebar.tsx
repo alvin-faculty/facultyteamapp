@@ -1,0 +1,113 @@
+"use client"
+
+import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+
+import { NavUser } from "@/components/nav-user"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+import { clientColorClass } from "@/lib/client-color"
+import { cn } from "@/lib/utils"
+import { FolderKanbanIcon } from "lucide-react"
+
+const NAV_ITEMS = [{ href: "/", label: "Project Overview", icon: FolderKanbanIcon }]
+
+const NAV_BUTTON_CLASSES =
+  "text-xs font-medium data-active:bg-primary data-active:text-primary-foreground hover:data-active:bg-primary hover:data-active:text-primary-foreground"
+
+export function AppSidebar({
+  user,
+  projects,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  user: { name: string; email: string }
+  projects: { id: string; name: string; clients: { id: string; name: string } | null }[]
+}) {
+  const pathname = usePathname()
+
+  return (
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <div className="flex h-10 items-center px-2 group-data-[collapsible=icon]:justify-center">
+          <span className="text-[10px] font-bold tracking-[0.35em] uppercase group-data-[collapsible=icon]:hidden">
+            Faculty Team
+          </span>
+          <span className="hidden text-[10px] font-bold uppercase group-data-[collapsible=icon]:block">
+            FT
+          </span>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] tracking-[0.05em] uppercase">
+            Workspace
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton
+                    isActive={href === "/" ? pathname === "/" : pathname.startsWith(href)}
+                    tooltip={label}
+                    className={NAV_BUTTON_CLASSES}
+                    render={<Link href={href} />}
+                  >
+                    <Icon />
+                    <span>{label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] tracking-[0.05em] uppercase">
+            Projects
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {projects.map((project) => {
+                const href = `/projects/${project.id}`
+                const label = project.clients ? `${project.clients.name} — ${project.name}` : project.name
+                return (
+                  <SidebarMenuItem key={project.id}>
+                    <SidebarMenuButton
+                      isActive={pathname === href}
+                      tooltip={label}
+                      className={NAV_BUTTON_CLASSES}
+                      render={<Link href={href} />}
+                    >
+                      <span
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          project.clients ? clientColorClass(project.clients.id) : "bg-muted-foreground",
+                        )}
+                      />
+                      <span>{label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={user} />
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  )
+}
