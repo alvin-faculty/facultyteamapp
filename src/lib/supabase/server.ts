@@ -28,9 +28,10 @@ export async function createClient() {
 }
 
 /**
- * Service-role client for the public share view only. Bypasses RLS, so
- * every caller must manually scope queries (e.g. by share_token) — never
- * expose this client or its results beyond the single matched project.
+ * Service-role client for admin-level operations (Supabase Auth admin API:
+ * inviting/banning users). Bypasses RLS — only call from server actions that
+ * have already verified the caller is an admin (see src/lib/actions/team.ts),
+ * and never expose this client or its raw results to the browser.
  */
 export function createServiceRoleClient() {
   return createSupabaseClient(

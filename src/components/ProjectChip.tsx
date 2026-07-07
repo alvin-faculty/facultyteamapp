@@ -19,12 +19,14 @@ export function ProjectChip({
   usedMinutes,
   usedAmount,
   team,
+  isAdmin,
 }: {
   project: Project;
   client: Client | null;
   usedMinutes: number;
   usedAmount: number;
   team: Profile[];
+  isAdmin: boolean;
 }) {
   const dateRange = dateRangeLabel(project.start_date, project.end_date);
 
@@ -50,6 +52,7 @@ export function ProjectChip({
             budgetHours={project.budget_hours}
             usedAmount={usedAmount}
             budgetAmount={project.budget_amount}
+            showAmount={isAdmin}
           />
 
           {/* Meta line: client · dates · team dots */}

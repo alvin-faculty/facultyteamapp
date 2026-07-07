@@ -14,5 +14,10 @@ export async function requireProfile(): Promise<Profile> {
 
   if (!profile) redirect("/login");
 
+  if (profile.disabled) {
+    await supabase.auth.signOut();
+    redirect("/login?error=" + encodeURIComponent("Your account has been disabled"));
+  }
+
   return profile;
 }

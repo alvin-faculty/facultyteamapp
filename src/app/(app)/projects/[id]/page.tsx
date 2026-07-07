@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireProfile } from "@/lib/current-user";
 import { ProjectDetailView } from "@/components/ProjectDetailView";
 import type {
   Client,
@@ -23,6 +24,7 @@ const DEFAULT_SECTION_NAMES = ["To do", "In Progress", "Review", "Done"];
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const profile = await requireProfile();
   const supabase = await createClient();
 
   const [{ data: project }, { data: timeEntries }, { data: profiles }, { data: members }, { data: sections }] =
@@ -83,6 +85,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       sections={projectSections}
       tasks={projectTasks}
       comments={(comments as TaskCommentWithAuthor[]) ?? []}
+      isAdmin={profile.role === "admin"}
     />
   );
 }

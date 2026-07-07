@@ -5,11 +5,13 @@ export function ProjectBudgetBar({
   budgetHours,
   usedAmount,
   budgetAmount,
+  showAmount,
 }: {
   usedMinutes: number;
   budgetHours: number | null;
   usedAmount: number;
   budgetAmount: number | null;
+  showAmount: boolean;
 }) {
   if (!budgetHours && !budgetAmount) {
     return <p className="text-sm text-muted-foreground">No budget set for this project.</p>;
@@ -35,7 +37,7 @@ export function ProjectBudgetBar({
             {formatMinutes(usedMinutes)} / {budgetHours}h budgeted
           </span>
         )}
-        {budgetAmount && (
+        {budgetAmount && showAmount && (
           <span>
             {formatCurrency(usedAmount)} / {formatCurrency(budgetAmount)} budgeted
           </span>

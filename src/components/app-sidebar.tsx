@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/sidebar"
 import { clientColorClass } from "@/lib/client-color"
 import { cn } from "@/lib/utils"
-import { FolderKanbanIcon } from "lucide-react"
+import { FolderKanbanIcon, SettingsIcon } from "lucide-react"
 
 const NAV_ITEMS = [{ href: "/", label: "Project Overview", icon: FolderKanbanIcon }]
 
@@ -30,12 +30,17 @@ const NAV_BUTTON_CLASSES =
 export function AppSidebar({
   user,
   projects,
+  isAdmin,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   user: { name: string; email: string }
   projects: { id: string; name: string; clients: { id: string; name: string } | null }[]
+  isAdmin: boolean
 }) {
   const pathname = usePathname()
+  const navItems = isAdmin
+    ? [...NAV_ITEMS, { href: "/settings", label: "Settings", icon: SettingsIcon }]
+    : NAV_ITEMS
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -56,7 +61,7 @@ export function AppSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+              {navItems.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
                     isActive={href === "/" ? pathname === "/" : pathname.startsWith(href)}

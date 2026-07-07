@@ -60,7 +60,7 @@ function usagePct(s: ProjectSummary): number {
   return hoursPct ?? amountPct ?? -1;
 }
 
-function DraggableChip({ summary }: { summary: ProjectSummary }) {
+function DraggableChip({ summary, isAdmin }: { summary: ProjectSummary; isAdmin: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: summary.project.id,
   });
@@ -79,6 +79,7 @@ function DraggableChip({ summary }: { summary: ProjectSummary }) {
         usedMinutes={summary.usedMinutes}
         usedAmount={summary.usedAmount}
         team={summary.team}
+        isAdmin={isAdmin}
       />
     </div>
   );
@@ -89,11 +90,13 @@ function BoardColumn({
   label,
   colorIndex,
   items,
+  isAdmin,
 }: {
   status: ProjectStatus;
   label: string;
   colorIndex: number;
   items: ProjectSummary[];
+  isAdmin: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -111,7 +114,7 @@ function BoardColumn({
       </div>
       <div className="space-y-3">
         {items.map((s) => (
-          <DraggableChip key={s.project.id} summary={s} />
+          <DraggableChip key={s.project.id} summary={s} isAdmin={isAdmin} />
         ))}
       </div>
     </div>
@@ -121,9 +124,11 @@ function BoardColumn({
 export function ProjectExplorer({
   summaries,
   clients,
+  isAdmin,
 }: {
   summaries: ProjectSummary[];
   clients: Client[];
+  isAdmin: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
@@ -306,6 +311,7 @@ export function ProjectExplorer({
                         usedMinutes={s.usedMinutes}
                         usedAmount={s.usedAmount}
                         team={s.team}
+                        isAdmin={isAdmin}
                       />
                     </div>
                   ))}
@@ -328,6 +334,7 @@ export function ProjectExplorer({
                   label={status.label}
                   colorIndex={STATUSES.findIndex((s) => s.value === status.value)}
                   items={sorted.filter((s) => s.project.status === status.value)}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>

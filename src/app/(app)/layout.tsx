@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SidebarProvider>
       <AppSidebar
         user={{ name: profile.name, email: profile.email }}
+        isAdmin={profile.role === "admin"}
         projects={
           (projects as unknown as {
             id: string;

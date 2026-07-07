@@ -29,6 +29,7 @@ export function ProjectDetailView({
   sections,
   tasks,
   comments,
+  isAdmin,
 }: {
   project: Project;
   client: Client | null;
@@ -39,6 +40,7 @@ export function ProjectDetailView({
   sections: Section[];
   tasks: Task[];
   comments: TaskCommentWithAuthor[];
+  isAdmin: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const team = allProfiles.filter((p) => assignedIds.includes(p.id));
@@ -93,10 +95,11 @@ export function ProjectDetailView({
                   budgetHours={project.budget_hours}
                   usedAmount={usedAmount}
                   budgetAmount={project.budget_amount}
+                  showAmount={isAdmin}
                 />
               </div>
 
-              {project.hourly_rate_override && (
+              {isAdmin && project.hourly_rate_override && (
                 <div className="space-y-1">
                   <p className="text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">Hourly rate override</p>
                   <p className="text-sm">{formatCurrency(project.hourly_rate_override)}/hr</p>

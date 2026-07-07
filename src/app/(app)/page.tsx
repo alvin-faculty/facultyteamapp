@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireProfile } from "@/lib/current-user";
 import { ProjectExplorer } from "@/components/ProjectExplorer";
 import type { Client, Profile, Project, ProjectMember } from "@/lib/supabase/types";
 
@@ -13,6 +14,7 @@ interface TimeEntryAgg {
 }
 
 export default async function ProjectOverviewPage() {
+  const profile = await requireProfile();
   const supabase = await createClient();
 
   const [{ data: projects }, { data: timeEntries }, { data: profiles }, { data: clients }, { data: members }] =
@@ -48,5 +50,11 @@ export default async function ProjectOverviewPage() {
     return { project, client: project.clients, usedMinutes, usedAmount, team, lastActivityAt };
   });
 
-  return <ProjectExplorer summaries={summaries} clients={(clients as Client[]) ?? []} />;
+  return (
+    <ProjectExplorer
+      summaries={summaries}
+      clients={(clients as Client[]) ?? []}
+      isAdmin={profile.role === "admin"}
+    />
+  );
 }

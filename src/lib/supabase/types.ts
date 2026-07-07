@@ -1,4 +1,5 @@
 export type ProjectStatus = "proposal" | "active" | "review" | "done" | "archived";
+export type UserRole = "admin" | "employee";
 
 export interface AssetLink {
   label: string;
@@ -11,6 +12,8 @@ export interface Profile {
   email: string;
   hourly_rate: number;
   avatar_url: string | null;
+  role: UserRole;
+  disabled: boolean;
   created_at: string;
 }
 
