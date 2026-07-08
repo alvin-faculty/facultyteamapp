@@ -5,7 +5,7 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/current-user";
 import type { UserRole } from "@/lib/supabase/types";
 
-async function requireAdmin() {
+export async function requireAdmin() {
   const profile = await requireProfile();
   if (profile.role !== "admin") throw new Error("Not authorized");
   return profile;

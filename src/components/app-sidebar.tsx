@@ -18,11 +18,14 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { clientColorClass } from "@/lib/client-color"
+import { projectDotColorClass } from "@/lib/project-color"
 import { cn } from "@/lib/utils"
-import { FolderKanbanIcon, SettingsIcon } from "lucide-react"
+import { FolderKanbanIcon, ListChecksIcon, SettingsIcon } from "lucide-react"
 
-const NAV_ITEMS = [{ href: "/", label: "Project Overview", icon: FolderKanbanIcon }]
+const NAV_ITEMS = [
+  { href: "/", label: "Project Overview", icon: FolderKanbanIcon },
+  { href: "/my-tasks", label: "My Tasks", icon: ListChecksIcon },
+]
 
 const NAV_BUTTON_CLASSES =
   "text-xs font-medium data-active:bg-primary data-active:text-primary-foreground hover:data-active:bg-primary hover:data-active:text-primary-foreground"
@@ -34,7 +37,7 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   user: { name: string; email: string }
-  projects: { id: string; name: string; clients: { id: string; name: string } | null }[]
+  projects: { id: string; name: string; color: string | null; clients: { id: string; name: string } | null }[]
   isAdmin: boolean
 }) {
   const pathname = usePathname()
@@ -97,7 +100,7 @@ export function AppSidebar({
                       <span
                         className={cn(
                           "size-2 shrink-0 rounded-full",
-                          project.clients ? clientColorClass(project.clients.id) : "bg-muted-foreground",
+                          projectDotColorClass(project.color, project.clients?.id ?? null),
                         )}
                       />
                       <span>{label}</span>

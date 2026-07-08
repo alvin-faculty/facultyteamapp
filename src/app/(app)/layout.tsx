@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createClient();
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, clients(id, name)")
+    .select("id, name, color, clients(id, name)")
     .order("name");
 
   return (
@@ -22,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           (projects as unknown as {
             id: string;
             name: string;
+            color: string | null;
             clients: { id: string; name: string } | null;
           }[]) ?? []
         }

@@ -17,19 +17,19 @@ import { NewSectionButton } from "@/components/NewSectionButton";
 import { moveTask } from "@/lib/actions/tasks";
 import { sectionColorClass } from "@/lib/section-color";
 import { cn } from "@/lib/utils";
-import type { Profile, Section, Task, TaskCommentWithAuthor } from "@/lib/supabase/types";
+import type { Profile, Section, Task, TaskAssignee, TaskCommentWithAuthor } from "@/lib/supabase/types";
 
 function DraggableTaskRow({
   task,
   projectId,
-  assignee,
+  assignees,
   commentCount,
   sectionColorIndex,
   onOpenTask,
 }: {
   task: Task;
   projectId: string;
-  assignee: Profile | null;
+  assignees: Profile[];
   commentCount: number;
   sectionColorIndex: number;
   onOpenTask: (id: string) => void;
@@ -49,7 +49,7 @@ function DraggableTaskRow({
       <TaskCard
         task={task}
         projectId={projectId}
-        assignee={assignee}
+        assignees={assignees}
         commentCount={commentCount}
         sectionColorIndex={sectionColorIndex}
         onClick={() => !isDragging && onOpenTask(task.id)}
@@ -64,7 +64,7 @@ function Column({
   tasks,
   allTasks,
   projectId,
-  profiles,
+  assigneesByTask,
   commentCountByTask,
   onOpenTask,
 }: {
@@ -73,7 +73,7 @@ function Column({
   tasks: Task[];
   allTasks: Task[];
   projectId: string;
-  profiles: Profile[];
+  assigneesByTask: Record<string, Profile[]>;
   commentCountByTask: Record<string, number>;
   onOpenTask: (id: string) => void;
 }) {
@@ -103,7 +103,7 @@ function Column({
             <DraggableTaskRow
               task={task}
               projectId={projectId}
-              assignee={profiles.find((p) => p.id === task.assignee_id) ?? null}
+              assignees={assigneesByTask[task.id] ?? []}
               commentCount={commentCountByTask[task.id] ?? 0}
               sectionColorIndex={sectionIndex}
               onOpenTask={onOpenTask}
@@ -115,7 +115,7 @@ function Column({
                   key={sub.id}
                   task={sub}
                   projectId={projectId}
-                  assignee={profiles.find((p) => p.id === sub.assignee_id) ?? null}
+                  assignees={assigneesByTask[sub.id] ?? []}
                   commentCount={commentCountByTask[sub.id] ?? 0}
                   indented
                   onClick={() => onOpenTask(sub.id)}
@@ -124,7 +124,7 @@ function Column({
           </div>
         ))}
       </div>
-      <NewTaskDialog projectId={projectId} sectionId={section.id} profiles={profiles} />
+      <NewTaskDialog projectId={projectId} sectionId={section.id} />
     </div>
   );
 }
@@ -134,12 +134,14 @@ export function KanbanBoard({
   sections,
   tasks,
   profiles,
+  taskAssignees,
   comments,
 }: {
   projectId: string;
   sections: Section[];
   tasks: Task[];
   profiles: Profile[];
+  taskAssignees: TaskAssignee[];
   comments: TaskCommentWithAuthor[];
 }) {
   const [prevTasks, setPrevTasks] = useState(tasks);
@@ -155,6 +157,13 @@ export function KanbanBoard({
 
   const commentCountByTask = comments.reduce<Record<string, number>>((acc, c) => {
     acc[c.task_id] = (acc[c.task_id] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const assigneesByTask = taskAssignees.reduce<Record<string, Profile[]>>((acc, ta) => {
+    const profile = profiles.find((p) => p.id === ta.user_id);
+    if (!profile) return acc;
+    (acc[ta.task_id] ??= []).push(profile);
     return acc;
   }, {});
 
@@ -188,6 +197,7 @@ export function KanbanBoard({
   const selectedComments = selectedTask
     ? comments.filter((c) => c.task_id === selectedTask.id)
     : [];
+  const selectedAssignees = selectedTask ? (assigneesByTask[selectedTask.id] ?? []) : [];
 
   return (
     <div className="col-span-12 space-y-3">
@@ -213,7 +223,7 @@ export function KanbanBoard({
                 .sort((a, b) => a.position - b.position)}
               allTasks={localTasks}
               projectId={projectId}
-              profiles={profiles}
+              assigneesByTask={assigneesByTask}
               commentCountByTask={commentCountByTask}
               onOpenTask={setSelectedTaskId}
             />
@@ -228,6 +238,7 @@ export function KanbanBoard({
         sectionIndex={selectedSectionIndex}
         projectId={projectId}
         profiles={profiles}
+        assignees={selectedAssignees}
         subtasks={selectedSubtasks}
         comments={selectedComments}
         onOpenChange={(open) => !open && setSelectedTaskId(null)}

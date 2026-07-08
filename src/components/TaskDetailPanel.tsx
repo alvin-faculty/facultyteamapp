@@ -12,26 +12,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   createSubtask,
   deleteTask,
   toggleTaskCompleted,
-  updateTaskAssignee,
   updateTaskDescription,
   updateTaskDueDate,
 } from "@/lib/actions/tasks";
+import { assignTaskMember, unassignTaskMember } from "@/lib/actions/task-assignees";
 import { addTaskComment } from "@/lib/actions/task-comments";
 import { sectionColorClass } from "@/lib/section-color";
 import { profileColorClass } from "@/lib/profile-color";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Trash2Icon } from "lucide-react";
+import { Trash2Icon, UsersIcon } from "lucide-react";
 import type { Profile, Section, Task, TaskCommentWithAuthor } from "@/lib/supabase/types";
 
 export function TaskDetailPanel({
@@ -40,6 +39,7 @@ export function TaskDetailPanel({
   sectionIndex,
   projectId,
   profiles,
+  assignees,
   subtasks,
   comments,
   onOpenChange,
@@ -49,6 +49,7 @@ export function TaskDetailPanel({
   sectionIndex: number;
   projectId: string;
   profiles: Profile[];
+  assignees: Profile[];
   subtasks: Task[];
   comments: TaskCommentWithAuthor[];
   onOpenChange: (open: boolean) => void;
@@ -56,6 +57,15 @@ export function TaskDetailPanel({
   const [isPending, startTransition] = useTransition();
   const [description, setDescription] = useState(task?.description ?? "");
   const [subtaskTitle, setSubtaskTitle] = useState("");
+
+  function toggleAssignee(userId: string, checked: boolean) {
+    if (!task) return;
+    startTransition(() =>
+      checked
+        ? assignTaskMember(task.id, projectId, userId)
+        : unassignTaskMember(task.id, projectId, userId),
+    );
+  }
 
   return (
     <Sheet open={task !== null} onOpenChange={onOpenChange}>
@@ -110,28 +120,41 @@ export function TaskDetailPanel({
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">Assignee</p>
-                  <Select
-                    defaultValue={task.assignee_id ?? "none"}
-                    items={{ none: "Unassigned", ...Object.fromEntries(profiles.map((p) => [p.id, p.name])) }}
-                    onValueChange={(v) =>
-                      startTransition(() =>
-                        updateTaskAssignee(task.id, projectId, v && v !== "none" ? v : null),
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {profiles.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
+                  <p className="text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">Assignees</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="outline" size="sm" disabled={isPending} className="w-full justify-start">
+                          <UsersIcon className="size-3.5" />
+                          {assignees.length > 0
+                            ? assignees.map((p) => p.name).join(", ")
+                            : "Unassigned"}
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="start">
+                      {profiles.map((profile) => (
+                        <DropdownMenuCheckboxItem
+                          key={profile.id}
+                          checked={assignees.some((a) => a.id === profile.id)}
+                          onCheckedChange={(checked) => toggleAssignee(profile.id, checked === true)}
+                          closeOnClick={false}
+                        >
+                          {profile.name}
+                        </DropdownMenuCheckboxItem>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {assignees.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {assignees.map((profile) => (
+                        <span key={profile.id} className="flex items-center gap-1">
+                          <span className={cn("size-2 rounded-full", profileColorClass(profile.id))} />
+                          <span className="text-[13px]">{profile.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

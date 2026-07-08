@@ -12,24 +12,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import type { Profile } from "@/lib/supabase/types";
 
 export function NewTaskDialog({
   projectId,
   sectionId,
-  profiles,
 }: {
   projectId: string;
   sectionId: string;
-  profiles: Profile[];
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -60,26 +50,6 @@ export function NewTaskDialog({
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="assignee_id">Assignee</Label>
-            <Select
-              name="assignee_id"
-              items={{ none: "Unassigned", ...Object.fromEntries(profiles.map((p) => [p.id, p.name])) }}
-              defaultValue="none"
-            >
-              <SelectTrigger id="assignee_id" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {profiles.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="due_date">Due date</Label>

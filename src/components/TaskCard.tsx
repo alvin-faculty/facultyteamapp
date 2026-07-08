@@ -11,33 +11,36 @@ import type { Profile, Task } from "@/lib/supabase/types";
 
 function MetaLine({
   task,
-  assignee,
+  assignees,
   commentCount,
 }: {
   task: Task;
-  assignee: Profile | null;
+  assignees: Profile[];
   commentCount: number;
 }) {
   const overdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed;
-  if (!assignee && !task.due_date && commentCount === 0) return null;
+  const shown = assignees.slice(0, 2);
+  const extra = assignees.length - shown.length;
+  if (assignees.length === 0 && !task.due_date && commentCount === 0) return null;
 
   return (
     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-      {assignee && (
-        <>
-          <span className={cn("size-2 shrink-0 rounded-full", profileColorClass(assignee.id))} />
-          <span className="truncate">{assignee.name}</span>
-        </>
-      )}
+      {shown.map((profile) => (
+        <span key={profile.id} className="flex items-center gap-1">
+          <span className={cn("size-2 shrink-0 rounded-full", profileColorClass(profile.id))} />
+          <span className="truncate">{profile.name}</span>
+        </span>
+      ))}
+      {extra > 0 && <span className="whitespace-nowrap">+{extra}</span>}
       {task.due_date && (
         <span className={cn("whitespace-nowrap", overdue && "font-semibold text-destructive")}>
-          {assignee ? "· " : ""}
+          {assignees.length > 0 ? "· " : ""}
           {formatDate(task.due_date)}
         </span>
       )}
       {commentCount > 0 && (
         <span className="whitespace-nowrap">
-          {assignee || task.due_date ? "· " : ""}
+          {assignees.length > 0 || task.due_date ? "· " : ""}
           {commentCount} {commentCount === 1 ? "note" : "notes"}
         </span>
       )}
@@ -48,7 +51,7 @@ function MetaLine({
 export function TaskCard({
   task,
   projectId,
-  assignee,
+  assignees,
   commentCount = 0,
   sectionColorIndex = 0,
   indented = false,
@@ -56,7 +59,7 @@ export function TaskCard({
 }: {
   task: Task;
   projectId: string;
-  assignee: Profile | null;
+  assignees: Profile[];
   commentCount?: number;
   sectionColorIndex?: number;
   indented?: boolean;
@@ -93,14 +96,14 @@ export function TaskCard({
       <div
         onClick={onClick}
         className={cn(
-          "ml-6 flex items-start gap-2 rounded-md border-l py-1 pl-3",
+          "ml-6 flex items-start gap-2 rounded-lg border bg-card py-1.5 px-3",
           onClick && "cursor-pointer hover:bg-muted/50",
         )}
       >
         {checkbox}
         <div className="min-w-0 flex-1 space-y-0.5">
           {title}
-          <MetaLine task={task} assignee={assignee} commentCount={commentCount} />
+          <MetaLine task={task} assignees={assignees} commentCount={commentCount} />
         </div>
       </div>
     );
@@ -119,7 +122,7 @@ export function TaskCard({
         {checkbox}
         <div className="min-w-0 flex-1 space-y-1">
           {title}
-          <MetaLine task={task} assignee={assignee} commentCount={commentCount} />
+          <MetaLine task={task} assignees={assignees} commentCount={commentCount} />
         </div>
       </div>
     </div>

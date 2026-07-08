@@ -6,19 +6,13 @@ import type {
   Client,
   Profile,
   Project,
-  ProjectMember,
   Section,
   Task,
+  TaskAssignee,
   TaskCommentWithAuthor,
 } from "@/lib/supabase/types";
 
 type ProjectWithClient = Project & { clients: Client | null };
-
-interface TimeEntryAgg {
-  duration_minutes: number | null;
-  billable: boolean;
-  rate_snapshot: number;
-}
 
 const DEFAULT_SECTION_NAMES = ["To do", "In Progress", "Review", "Done"];
 
@@ -27,18 +21,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const [{ data: project }, { data: timeEntries }, { data: profiles }, { data: members }, { data: sections }] =
-    await Promise.all([
-      supabase.from("projects").select("*, clients(*)").eq("id", id).maybeSingle(),
-      supabase
-        .from("time_entries")
-        .select("duration_minutes, billable, rate_snapshot")
-        .eq("project_id", id)
-        .not("ended_at", "is", null),
-      supabase.from("profiles").select("*").order("name"),
-      supabase.from("project_members").select("*").eq("project_id", id),
-      supabase.from("sections").select("*").eq("project_id", id).order("position"),
-    ]);
+  const [{ data: project }, { data: profiles }, { data: sections }, { data: clients }] = await Promise.all([
+    supabase.from("projects").select("*, clients(*)").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("*").order("name"),
+    supabase.from("sections").select("*").eq("project_id", id).order("position"),
+    supabase.from("clients").select("*").order("name"),
+  ]);
 
   if (!project) notFound();
 
@@ -59,31 +47,26 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const projectTasks = (tasks as Task[]) ?? [];
   const taskIds = projectTasks.map((t) => t.id);
-  const { data: comments } =
+  const [{ data: comments }, { data: taskAssignees }] =
     taskIds.length > 0
-      ? await supabase.from("task_comments").select("*, profiles(name)").in("task_id", taskIds)
-      : { data: [] };
+      ? await Promise.all([
+          supabase.from("task_comments").select("*, profiles(name)").in("task_id", taskIds),
+          supabase.from("task_assignees").select("*").in("task_id", taskIds),
+        ])
+      : [{ data: [] }, { data: [] }];
 
   const projectWithClient = project as ProjectWithClient;
-  const entries = (timeEntries as TimeEntryAgg[]) ?? [];
-  const usedMinutes = entries.reduce((sum, e) => sum + (e.duration_minutes ?? 0), 0);
-  const usedAmount = entries
-    .filter((e) => e.billable)
-    .reduce((sum, e) => sum + ((e.duration_minutes ?? 0) / 60) * e.rate_snapshot, 0);
-
   const allProfiles = (profiles as Profile[]) ?? [];
-  const assignedIds = ((members as ProjectMember[]) ?? []).map((m) => m.user_id);
 
   return (
     <ProjectDetailView
       project={projectWithClient}
       client={projectWithClient.clients}
-      usedMinutes={usedMinutes}
-      usedAmount={usedAmount}
+      allClients={(clients as Client[]) ?? []}
       allProfiles={allProfiles}
-      assignedIds={assignedIds}
       sections={projectSections}
       tasks={projectTasks}
+      taskAssignees={(taskAssignees as TaskAssignee[]) ?? []}
       comments={(comments as TaskCommentWithAuthor[]) ?? []}
       isAdmin={profile.role === "admin"}
     />

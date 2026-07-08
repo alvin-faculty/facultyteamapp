@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProjectBudgetBar } from "@/components/ProjectBudgetBar";
-import { clientBorderColorClass, clientColorClass } from "@/lib/client-color";
+import { projectBorderColorClass, projectDotColorClass } from "@/lib/project-color";
 import { profileColorClass } from "@/lib/profile-color";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ export function ProjectChip({
       <div
         className={cn(
           "cursor-pointer rounded-xl border border-l-4 bg-card transition-colors hover:bg-muted/40",
-          client ? clientBorderColorClass(client.id) : "border-l-muted-foreground",
+          projectBorderColorClass(project.color, client?.id ?? null),
         )}
       >
         <div className="space-y-3 px-4 py-3">
@@ -47,20 +47,24 @@ export function ProjectChip({
             </span>
           </div>
 
-          <ProjectBudgetBar
-            usedMinutes={usedMinutes}
-            budgetHours={project.budget_hours}
-            usedAmount={usedAmount}
-            budgetAmount={project.budget_amount}
-            showAmount={isAdmin}
-          />
+          {isAdmin && (
+            <ProjectBudgetBar
+              usedMinutes={usedMinutes}
+              budgetHours={project.budget_hours}
+              usedAmount={usedAmount}
+              budgetAmount={project.budget_amount}
+            />
+          )}
 
           {/* Meta line: client · dates · team dots */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
-              {client && (
-                <span className={cn("size-2 shrink-0 rounded-full", clientColorClass(client.id))} />
-              )}
+              <span
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  projectDotColorClass(project.color, client?.id ?? null),
+                )}
+              />
               <span className="truncate">
                 {client?.name ?? "—"}
                 {dateRange && ` · ${dateRange}`}

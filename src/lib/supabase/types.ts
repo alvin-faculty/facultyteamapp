@@ -38,6 +38,10 @@ export interface Project {
   end_date: string | null;
   share_token: string;
   asset_links: AssetLink[];
+  project_number: string | null;
+  dropbox_folder_url: string | null;
+  proposal_scope_url: string | null;
+  color: string | null;
   created_at: string;
 }
 
@@ -63,9 +67,14 @@ export interface Task {
   section_id: string | null;
   completed: boolean;
   parent_task_id: string | null;
-  assignee_id: string | null;
   due_date: string | null;
   position: number;
+  created_at: string;
+}
+
+export interface TaskAssignee {
+  task_id: string;
+  user_id: string;
   created_at: string;
 }
 
@@ -134,6 +143,7 @@ export interface Database {
       projects: { Row: Project; Insert: Partial<Project>; Update: Partial<Project> };
       project_members: { Row: ProjectMember; Insert: Partial<ProjectMember> & { project_id: string; user_id: string }; Update: Partial<ProjectMember> };
       tasks: { Row: Task; Insert: Partial<Task>; Update: Partial<Task> };
+      task_assignees: { Row: TaskAssignee; Insert: Partial<TaskAssignee> & { task_id: string; user_id: string }; Update: Partial<TaskAssignee> };
       sections: { Row: Section; Insert: Partial<Section>; Update: Partial<Section> };
       task_comments: { Row: TaskComment; Insert: Partial<TaskComment>; Update: Partial<TaskComment> };
       invoice_batches: { Row: InvoiceBatch; Insert: Partial<InvoiceBatch>; Update: Partial<InvoiceBatch> };

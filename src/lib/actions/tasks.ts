@@ -7,8 +7,6 @@ export async function createTask(projectId: string, sectionId: string, formData:
   const supabase = await createSupabaseServerClient();
 
   const title = String(formData.get("title"));
-  const assigneeRaw = formData.get("assignee_id") as string;
-  const assignee_id = assigneeRaw && assigneeRaw !== "none" ? assigneeRaw : null;
   const due_date = (formData.get("due_date") as string) || null;
 
   const { count } = await supabase
@@ -20,7 +18,6 @@ export async function createTask(projectId: string, sectionId: string, formData:
     project_id: projectId,
     section_id: sectionId,
     title,
-    assignee_id,
     due_date,
     position: count ?? 0,
   });
@@ -88,18 +85,6 @@ export async function updateTaskDueDate(taskId: string, projectId: string, dueDa
   const { error } = await supabase
     .from("tasks")
     .update({ due_date: dueDate || null })
-    .eq("id", taskId);
-
-  if (error) throw new Error(error.message);
-  revalidatePath(`/projects/${projectId}`);
-}
-
-export async function updateTaskAssignee(taskId: string, projectId: string, assigneeId: string | null) {
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase
-    .from("tasks")
-    .update({ assignee_id: assigneeId })
     .eq("id", taskId);
 
   if (error) throw new Error(error.message);
