@@ -91,6 +91,15 @@ export async function updateTaskDueDate(taskId: string, projectId: string, dueDa
   revalidatePath(`/projects/${projectId}`);
 }
 
+export async function updateTaskBillable(taskId: string, projectId: string, billable: boolean) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase.from("tasks").update({ billable }).eq("id", taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
 export async function deleteTask(taskId: string, projectId: string) {
   const supabase = await createSupabaseServerClient();
 

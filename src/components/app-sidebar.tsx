@@ -20,11 +20,16 @@ import {
 } from "@/components/ui/sidebar"
 import { projectDotColorClass } from "@/lib/project-color"
 import { cn } from "@/lib/utils"
-import { FolderKanbanIcon, ListChecksIcon, SettingsIcon } from "lucide-react"
+import { BarChart3Icon, FolderKanbanIcon, ListChecksIcon, SettingsIcon } from "lucide-react"
 
 const NAV_ITEMS = [
   { href: "/", label: "Project Overview", icon: FolderKanbanIcon },
   { href: "/my-tasks", label: "My Tasks", icon: ListChecksIcon },
+]
+
+const ADMIN_NAV_ITEMS = [
+  { href: "/tracked-time", label: "Tracked Time", icon: BarChart3Icon },
+  { href: "/settings", label: "Settings", icon: SettingsIcon },
 ]
 
 const NAV_BUTTON_CLASSES =
@@ -41,9 +46,7 @@ export function AppSidebar({
   isAdmin: boolean
 }) {
   const pathname = usePathname()
-  const navItems = isAdmin
-    ? [...NAV_ITEMS, { href: "/settings", label: "Settings", icon: SettingsIcon }]
-    : NAV_ITEMS
+  const navItems = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS
 
   return (
     <Sidebar collapsible="icon" {...props}>

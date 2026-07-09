@@ -9,6 +9,13 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
 }
 
+/** 12-hour clock time with AM/PM, e.g. "9:15 AM", in the viewer's local timezone. */
+export function formatTimeOfDay(dateStr: string): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(
+    new Date(dateStr),
+  );
+}
+
 export function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
   // dateStr is a bare "YYYY-MM-DD" date with no time component. JS parses that as
@@ -24,6 +31,19 @@ export function formatDate(dateStr: string | null): string {
 
 export function minutesBetween(start: string, end: string): number {
   return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+}
+
+/** Exact elapsed time between two timestamps, down to the second (e.g. "1h 23m 45s"). */
+export function formatDurationBetween(start: string, end: string): string {
+  const totalSeconds = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (h > 0 || m > 0) parts.push(`${String(m).padStart(h > 0 ? 2 : 1, "0")}m`);
+  parts.push(`${String(s).padStart(m > 0 || h > 0 ? 2 : 1, "0")}s`);
+  return parts.join(" ");
 }
 
 /** Today as "YYYY-MM-DD" using local calendar date parts, not toISOString()

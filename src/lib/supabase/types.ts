@@ -68,6 +68,7 @@ export interface Task {
   completed: boolean;
   parent_task_id: string | null;
   due_date: string | null;
+  billable: boolean;
   position: number;
   created_at: string;
 }

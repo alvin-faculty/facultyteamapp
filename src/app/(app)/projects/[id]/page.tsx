@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/current-user";
 import { ProjectDetailView } from "@/components/ProjectDetailView";
+import type { RunningTimeEntry } from "@/lib/actions/time-entries";
 import type {
   Client,
   Profile,
@@ -21,12 +22,19 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const [{ data: project }, { data: profiles }, { data: sections }, { data: clients }] = await Promise.all([
-    supabase.from("projects").select("*, clients(*)").eq("id", id).maybeSingle(),
-    supabase.from("profiles").select("*").order("name"),
-    supabase.from("sections").select("*").eq("project_id", id).order("position"),
-    supabase.from("clients").select("*").order("name"),
-  ]);
+  const [{ data: project }, { data: profiles }, { data: sections }, { data: clients }, { data: runningEntry }] =
+    await Promise.all([
+      supabase.from("projects").select("*, clients(*)").eq("id", id).maybeSingle(),
+      supabase.from("profiles").select("*").order("name"),
+      supabase.from("sections").select("*").eq("project_id", id).order("position"),
+      supabase.from("clients").select("*").order("name"),
+      supabase
+        .from("time_entries")
+        .select("*, projects(name), tasks(title)")
+        .eq("user_id", profile.id)
+        .is("ended_at", null)
+        .maybeSingle(),
+    ]);
 
   if (!project) notFound();
 
@@ -69,6 +77,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       taskAssignees={(taskAssignees as TaskAssignee[]) ?? []}
       comments={(comments as TaskCommentWithAuthor[]) ?? []}
       isAdmin={profile.role === "admin"}
+      currentUser={{ id: profile.id, name: profile.name }}
+      runningEntry={runningEntry as RunningTimeEntry | null}
     />
   );
 }

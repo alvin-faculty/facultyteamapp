@@ -15,7 +15,8 @@ import {
   updateProjectNumber,
   uploadProposalScope,
 } from "@/lib/actions/projects";
-import { ArrowLeft, ExternalLinkIcon, FileImageIcon } from "lucide-react";
+import type { RunningTimeEntry } from "@/lib/actions/time-entries";
+import { ArrowLeft, ExternalLinkIcon, FileImageIcon, PencilIcon } from "lucide-react";
 import type { Client, Profile, Project, Section, Task, TaskAssignee, TaskCommentWithAuthor } from "@/lib/supabase/types";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -27,43 +28,72 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function EditableField({
+  label,
+  value,
+  displayValue,
+  onSave,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  displayValue?: ReactNode;
+  onSave: (value: string) => Promise<void>;
+  type?: string;
+  placeholder?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [isPending, startTransition] = useTransition();
+
+  function save() {
+    startTransition(async () => {
+      try {
+        await onSave(draft);
+        setEditing(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save");
+      }
+    });
+  }
+
+  return (
+    <Field label={label}>
+      {editing ? (
+        <Input
+          type={type}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          disabled={isPending}
+          placeholder={placeholder}
+          autoFocus
+        />
+      ) : (
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="min-w-0 truncate text-sm">{displayValue ?? (value.trim() ? value : <span className="text-muted-foreground">—</span>)}</div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => {
+              setDraft(value);
+              setEditing(true);
+            }}
+          >
+            <PencilIcon className="size-3" />
+          </Button>
+        </div>
+      )}
+    </Field>
+  );
+}
+
 function ProjectInfoBox({ project, client, isAdmin }: { project: Project; client: Client | null; isAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
-  const [budgetHours, setBudgetHours] = useState(project.budget_hours?.toString() ?? "");
-  const [projectNumber, setProjectNumber] = useState(project.project_number ?? "");
-  const [dropboxUrl, setDropboxUrl] = useState(project.dropbox_folder_url ?? "");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function saveBudgetHours() {
-    const parsed = budgetHours.trim() === "" ? null : Number(budgetHours);
-    startTransition(async () => {
-      try {
-        await updateProjectBudgetHours(project.id, Number.isFinite(parsed as number) ? parsed : null);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update budgeted hours");
-      }
-    });
-  }
-
-  function saveProjectNumber() {
-    startTransition(async () => {
-      try {
-        await updateProjectNumber(project.id, projectNumber.trim());
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update project number");
-      }
-    });
-  }
-
-  function saveDropboxUrl() {
-    startTransition(async () => {
-      try {
-        await updateProjectDropboxUrl(project.id, dropboxUrl.trim());
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update Dropbox link");
-      }
-    });
-  }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,18 +115,15 @@ function ProjectInfoBox({ project, client, isAdmin }: { project: Project; client
     <Card>
       <CardContent className="grid grid-cols-2 gap-4 py-4 md:grid-cols-3">
         {isAdmin && (
-          <Field label="Total budgeted hours">
-            <Input
-              type="number"
-              min="0"
-              step="0.5"
-              value={budgetHours}
-              onChange={(e) => setBudgetHours(e.target.value)}
-              onBlur={saveBudgetHours}
-              disabled={isPending}
-              placeholder="—"
-            />
-          </Field>
+          <EditableField
+            label="Total budgeted hours"
+            value={project.budget_hours?.toString() ?? ""}
+            type="number"
+            placeholder="—"
+            onSave={(v) =>
+              updateProjectBudgetHours(project.id, v.trim() === "" ? null : Number(v))
+            }
+          />
         )}
 
         <Field label="Proposal scope">
@@ -116,12 +143,12 @@ function ProjectInfoBox({ project, client, isAdmin }: { project: Project; client
             )}
             <Button
               type="button"
-              variant="outline"
-              size="xs"
+              variant="ghost"
+              size="icon-xs"
               disabled={isPending}
               onClick={() => fileInputRef.current?.click()}
             >
-              {project.proposal_scope_url ? "Replace" : "Upload"}
+              <PencilIcon className="size-3" />
             </Button>
             <input
               ref={fileInputRef}
@@ -141,37 +168,32 @@ function ProjectInfoBox({ project, client, isAdmin }: { project: Project; client
           <p className="text-sm">{client?.contact_email ?? "—"}</p>
         </Field>
 
-        <Field label="Project number">
-          <Input
-            value={projectNumber}
-            onChange={(e) => setProjectNumber(e.target.value)}
-            onBlur={saveProjectNumber}
-            disabled={isPending}
-            placeholder="—"
-          />
-        </Field>
+        <EditableField
+          label="Project number"
+          value={project.project_number ?? ""}
+          placeholder="—"
+          onSave={(v) => updateProjectNumber(project.id, v.trim())}
+        />
 
-        <Field label="Dropbox folder">
-          <div className="flex items-center gap-2">
-            <Input
-              value={dropboxUrl}
-              onChange={(e) => setDropboxUrl(e.target.value)}
-              onBlur={saveDropboxUrl}
-              disabled={isPending}
-              placeholder="https://dropbox.com/…"
-            />
-            {project.dropbox_folder_url && (
+        <EditableField
+          label="Dropbox folder"
+          value={project.dropbox_folder_url ?? ""}
+          placeholder="https://dropbox.com/…"
+          displayValue={
+            project.dropbox_folder_url ? (
               <a
                 href={project.dropbox_folder_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 text-primary hover:underline"
               >
-                <ExternalLinkIcon className="size-4" />
+                <ExternalLinkIcon className="size-3.5" />
+                {project.dropbox_folder_url}
               </a>
-            )}
-          </div>
-        </Field>
+            ) : undefined
+          }
+          onSave={(v) => updateProjectDropboxUrl(project.id, v.trim())}
+        />
       </CardContent>
     </Card>
   );
@@ -187,6 +209,8 @@ export function ProjectDetailView({
   taskAssignees,
   comments,
   isAdmin,
+  currentUser,
+  runningEntry,
 }: {
   project: Project;
   client: Client | null;
@@ -197,6 +221,8 @@ export function ProjectDetailView({
   taskAssignees: TaskAssignee[];
   comments: TaskCommentWithAuthor[];
   isAdmin: boolean;
+  currentUser: { id: string; name: string };
+  runningEntry: RunningTimeEntry | null;
 }) {
   return (
     <div className="col-span-12 space-y-6">
@@ -226,6 +252,8 @@ export function ProjectDetailView({
         profiles={allProfiles}
         taskAssignees={taskAssignees}
         comments={comments}
+        currentUser={currentUser}
+        runningEntry={runningEntry}
       />
     </div>
   );

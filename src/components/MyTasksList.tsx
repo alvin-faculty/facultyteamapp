@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { TaskCard } from "@/components/TaskCard";
+import type { RunningTimeEntry } from "@/lib/actions/time-entries";
 import type { Client, Profile, Task } from "@/lib/supabase/types";
 
 export interface MyTaskItem {
@@ -13,7 +14,13 @@ export interface MyTaskItem {
   commentCount: number;
 }
 
-export function MyTasksList({ items }: { items: MyTaskItem[] }) {
+export function MyTasksList({
+  items,
+  runningEntry,
+}: {
+  items: MyTaskItem[];
+  runningEntry: RunningTimeEntry | null;
+}) {
   const router = useRouter();
 
   if (items.length === 0) {
@@ -48,6 +55,7 @@ export function MyTasksList({ items }: { items: MyTaskItem[] }) {
                   projectId={projectId}
                   assignees={assignees}
                   commentCount={commentCount}
+                  runningEntry={runningEntry}
                   onClick={() => router.push(`/projects/${projectId}`)}
                 />
               ))}

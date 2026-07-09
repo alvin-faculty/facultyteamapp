@@ -1,12 +1,16 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toggleTaskCompleted } from "@/lib/actions/tasks";
-import { sectionBorderColorClass } from "@/lib/section-color";
+import { startTimer, stopTimer, type RunningTimeEntry } from "@/lib/actions/time-entries";
+import { useTimerDisplay } from "@/hooks/useTimerDisplay";
+import { InlineDurationEdit } from "@/components/InlineDurationEdit";
 import { profileColorClass } from "@/lib/profile-color";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PlayIcon, SquareIcon } from "lucide-react";
 import type { Profile, Task } from "@/lib/supabase/types";
 
 function MetaLine({
@@ -48,21 +52,98 @@ function MetaLine({
   );
 }
 
+function formatElapsed(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function TimerControl({
+  task,
+  projectId,
+  runningEntry,
+}: {
+  task: Task;
+  projectId: string;
+  runningEntry: RunningTimeEntry | null;
+}) {
+  const { lastEntry, isRunning, freeze } = useTimerDisplay(runningEntry, runningEntry?.task_id === task.id);
+  const [isPending, startTransition] = useTransition();
+  const [elapsed, setElapsed] = useState(0);
+  const [frozenSeconds, setFrozenSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!isRunning || !runningEntry) return;
+    const tick = () =>
+      setElapsed(Math.floor((Date.now() - new Date(runningEntry.started_at).getTime()) / 1000));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [isRunning, runningEntry]);
+
+  function handleStop() {
+    if (!runningEntry) return;
+    const seconds = Math.floor((Date.now() - new Date(runningEntry.started_at).getTime()) / 1000);
+    setFrozenSeconds(seconds);
+    freeze({ ...runningEntry, ended_at: new Date().toISOString(), duration_minutes: Math.round(seconds / 60) });
+    startTransition(() => stopTimer(runningEntry.id));
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+      {isRunning && (
+        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+          {formatElapsed(elapsed)}
+        </span>
+      )}
+      {!isRunning && lastEntry && (
+        <InlineDurationEdit
+          entryId={lastEntry.id}
+          seconds={frozenSeconds}
+          onSaved={setFrozenSeconds}
+          className="text-[10px] text-muted-foreground"
+        />
+      )}
+      <Button
+        type="button"
+        size="icon-xs"
+        className={cn(
+          "rounded-full",
+          isRunning && "bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        )}
+        disabled={isPending}
+        onClick={() =>
+          isRunning && runningEntry
+            ? handleStop()
+            : startTransition(() => startTimer(projectId, task.id, ""))
+        }
+      >
+        {isRunning ? (
+          <SquareIcon className="size-2.5 fill-current" />
+        ) : (
+          <PlayIcon className="size-2.5 fill-current" />
+        )}
+      </Button>
+    </div>
+  );
+}
+
 export function TaskCard({
   task,
   projectId,
   assignees,
   commentCount = 0,
-  sectionColorIndex = 0,
   indented = false,
+  runningEntry,
   onClick,
 }: {
   task: Task;
   projectId: string;
   assignees: Profile[];
   commentCount?: number;
-  sectionColorIndex?: number;
   indented?: boolean;
+  runningEntry?: RunningTimeEntry | null;
   onClick?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -75,7 +156,7 @@ export function TaskCard({
       onCheckedChange={(checked) =>
         startTransition(() => toggleTaskCompleted(task.id, projectId, checked === true))
       }
-      className="mt-0.5 size-4 rounded-full border-2"
+      className="mt-0.5"
     />
   );
 
@@ -91,13 +172,17 @@ export function TaskCard({
     </p>
   );
 
+  const timerControl = runningEntry !== undefined && (
+    <TimerControl task={task} projectId={projectId} runningEntry={runningEntry} />
+  );
+
   if (indented) {
     return (
       <div
         onClick={onClick}
         className={cn(
-          "ml-6 flex items-start gap-2 rounded-lg border bg-card py-1.5 px-3",
-          onClick && "cursor-pointer hover:bg-muted/50",
+          "flex items-start gap-2 rounded-lg border bg-muted/30 py-1.5 px-3",
+          onClick && "cursor-pointer hover:bg-muted/60",
         )}
       >
         {checkbox}
@@ -105,6 +190,7 @@ export function TaskCard({
           {title}
           <MetaLine task={task} assignees={assignees} commentCount={commentCount} />
         </div>
+        {timerControl}
       </div>
     );
   }
@@ -113,8 +199,7 @@ export function TaskCard({
     <div
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-l-4 bg-card px-3 py-2.5",
-        sectionBorderColorClass(sectionColorIndex),
+        "rounded-lg border bg-card px-3 py-2.5",
         onClick && "cursor-pointer transition-colors hover:bg-muted/40",
       )}
     >
@@ -124,6 +209,7 @@ export function TaskCard({
           {title}
           <MetaLine task={task} assignees={assignees} commentCount={commentCount} />
         </div>
+        {timerControl}
       </div>
     </div>
   );

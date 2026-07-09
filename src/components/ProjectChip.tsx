@@ -2,8 +2,9 @@ import Link from "next/link";
 import { ProjectBudgetBar } from "@/components/ProjectBudgetBar";
 import { projectBorderColorClass, projectDotColorClass } from "@/lib/project-color";
 import { profileColorClass } from "@/lib/profile-color";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMinutes } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { TimerIcon } from "lucide-react";
 import type { Client, Profile, Project } from "@/lib/supabase/types";
 
 function dateRangeLabel(startDate: string | null, endDate: string | null): string | null {
@@ -69,6 +70,12 @@ export function ProjectChip({
                 {client?.name ?? "—"}
                 {dateRange && ` · ${dateRange}`}
               </span>
+              {usedMinutes > 0 && (
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <TimerIcon className="size-2.5" />
+                  {formatMinutes(usedMinutes)}
+                </span>
+              )}
             </div>
             {team.length > 0 && (
               <div className="flex shrink-0 items-center gap-1">

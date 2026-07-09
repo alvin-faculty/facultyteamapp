@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/current-user";
 import { MyTasksList, type MyTaskItem } from "@/components/MyTasksList";
+import type { RunningTimeEntry } from "@/lib/actions/time-entries";
 import type { Client, Profile, Project, Task, TaskAssignee } from "@/lib/supabase/types";
 
 type ProjectWithClient = Project & { clients: Client | null };
@@ -9,10 +10,15 @@ export default async function MyTasksPage() {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const { data: assignedRows } = await supabase
-    .from("task_assignees")
-    .select("task_id")
-    .eq("user_id", profile.id);
+  const [{ data: assignedRows }, { data: runningEntry }] = await Promise.all([
+    supabase.from("task_assignees").select("task_id").eq("user_id", profile.id),
+    supabase
+      .from("time_entries")
+      .select("*, projects(name), tasks(title)")
+      .eq("user_id", profile.id)
+      .is("ended_at", null)
+      .maybeSingle(),
+  ]);
 
   const taskIds = Array.from(new Set((assignedRows ?? []).map((r) => r.task_id)));
 
@@ -76,7 +82,7 @@ export default async function MyTasksPage() {
   return (
     <div className="col-span-12 space-y-6">
       <h1 className="text-2xl font-semibold">My Tasks</h1>
-      <MyTasksList items={items} />
+      <MyTasksList items={items} runningEntry={runningEntry as RunningTimeEntry | null} />
     </div>
   );
 }
