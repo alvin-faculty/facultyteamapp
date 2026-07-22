@@ -1,5 +1,10 @@
-export type ProjectStatus = "proposal" | "active" | "review" | "done" | "archived";
-export type UserRole = "admin" | "employee";
+export type ProjectStatus =
+  | 'proposal'
+  | 'active'
+  | 'review'
+  | 'done'
+  | 'archived';
+export type UserRole = 'admin' | 'employee';
 
 export interface AssetLink {
   label: string;
@@ -87,7 +92,22 @@ export interface TaskComment {
   created_at: string;
 }
 
-export type TaskCommentWithAuthor = TaskComment & { profiles?: { name: string } | null };
+export type TaskCommentWithAuthor = TaskComment & {
+  profiles?: { name: string } | null;
+};
+
+export interface ProjectComment {
+  id: string;
+  project_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ProjectCommentWithAuthor = ProjectComment & {
+  profiles?: { name: string } | null;
+};
 
 export interface InvoiceBatch {
   id: string;
@@ -98,7 +118,7 @@ export interface InvoiceBatch {
   exported_by: string | null;
 }
 
-export type FlowNodeType = "task" | "note" | "document";
+export type FlowNodeType = 'task' | 'note' | 'document';
 
 export interface FlowNode {
   id: string;
@@ -139,18 +159,74 @@ export interface TimeEntry {
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
-      clients: { Row: Client; Insert: Partial<Client>; Update: Partial<Client> };
-      projects: { Row: Project; Insert: Partial<Project>; Update: Partial<Project> };
-      project_members: { Row: ProjectMember; Insert: Partial<ProjectMember> & { project_id: string; user_id: string }; Update: Partial<ProjectMember> };
+      profiles: {
+        Row: Profile;
+        Insert: Partial<Profile> & { id: string };
+        Update: Partial<Profile>;
+      };
+      clients: {
+        Row: Client;
+        Insert: Partial<Client>;
+        Update: Partial<Client>;
+      };
+      projects: {
+        Row: Project;
+        Insert: Partial<Project>;
+        Update: Partial<Project>;
+      };
+      project_members: {
+        Row: ProjectMember;
+        Insert: Partial<ProjectMember> & {
+          project_id: string;
+          user_id: string;
+        };
+        Update: Partial<ProjectMember>;
+      };
       tasks: { Row: Task; Insert: Partial<Task>; Update: Partial<Task> };
-      task_assignees: { Row: TaskAssignee; Insert: Partial<TaskAssignee> & { task_id: string; user_id: string }; Update: Partial<TaskAssignee> };
-      sections: { Row: Section; Insert: Partial<Section>; Update: Partial<Section> };
-      task_comments: { Row: TaskComment; Insert: Partial<TaskComment>; Update: Partial<TaskComment> };
-      invoice_batches: { Row: InvoiceBatch; Insert: Partial<InvoiceBatch>; Update: Partial<InvoiceBatch> };
-      time_entries: { Row: TimeEntry; Insert: Partial<TimeEntry>; Update: Partial<TimeEntry> };
-      flow_nodes: { Row: FlowNode; Insert: Partial<FlowNode>; Update: Partial<FlowNode> };
-      flow_edges: { Row: FlowEdge; Insert: Partial<FlowEdge>; Update: Partial<FlowEdge> };
+      task_assignees: {
+        Row: TaskAssignee;
+        Insert: Partial<TaskAssignee> & { task_id: string; user_id: string };
+        Update: Partial<TaskAssignee>;
+      };
+      sections: {
+        Row: Section;
+        Insert: Partial<Section>;
+        Update: Partial<Section>;
+      };
+      task_comments: {
+        Row: TaskComment;
+        Insert: Partial<TaskComment>;
+        Update: Partial<TaskComment>;
+      };
+      project_comments: {
+        Row: ProjectComment;
+        Insert: Partial<ProjectComment> & {
+          project_id: string;
+          user_id: string;
+          body: string;
+        };
+        Update: Partial<ProjectComment>;
+      };
+      invoice_batches: {
+        Row: InvoiceBatch;
+        Insert: Partial<InvoiceBatch>;
+        Update: Partial<InvoiceBatch>;
+      };
+      time_entries: {
+        Row: TimeEntry;
+        Insert: Partial<TimeEntry>;
+        Update: Partial<TimeEntry>;
+      };
+      flow_nodes: {
+        Row: FlowNode;
+        Insert: Partial<FlowNode>;
+        Update: Partial<FlowNode>;
+      };
+      flow_edges: {
+        Row: FlowEdge;
+        Insert: Partial<FlowEdge>;
+        Update: Partial<FlowEdge>;
+      };
     };
   };
 }
