@@ -1,14 +1,21 @@
-import Link from "next/link";
-import { ProjectBudgetBar } from "@/components/ProjectBudgetBar";
-import { projectBorderColorClass, projectDotColorClass } from "@/lib/project-color";
-import { profileColorClass } from "@/lib/profile-color";
-import { formatDate, formatMinutes } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { TimerIcon } from "lucide-react";
-import type { Client, Profile, Project } from "@/lib/supabase/types";
+import Link from 'next/link';
+import { ProjectBudgetBar } from '@/components/ProjectBudgetBar';
+import {
+  projectBorderColorClass,
+  projectDotColorClass,
+} from '@/lib/project-color';
+import { profileColorClass } from '@/lib/profile-color';
+import { formatDate, formatMinutes } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { TimerIcon } from 'lucide-react';
+import type { Client, Profile, Project } from '@/lib/supabase/types';
 
-function dateRangeLabel(startDate: string | null, endDate: string | null): string | null {
-  if (startDate && endDate) return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+function dateRangeLabel(
+  startDate: string | null,
+  endDate: string | null,
+): string | null {
+  if (startDate && endDate)
+    return `${formatDate(startDate)} – ${formatDate(endDate)}`;
   if (endDate) return `Due ${formatDate(endDate)}`;
   if (startDate) return `Started ${formatDate(startDate)}`;
   return null;
@@ -32,18 +39,18 @@ export function ProjectChip({
   const dateRange = dateRangeLabel(project.start_date, project.end_date);
 
   return (
-    <Link href={`/projects/${project.id}`} className="block">
+    <Link href={`/projects/${project.id}`} className='block'>
       <div
         className={cn(
-          "cursor-pointer rounded-xl border border-l-4 bg-card transition-colors hover:bg-muted/40",
+          'cursor-pointer rounded-lg bg-card transition-colors hover:bg-muted/40',
           projectBorderColorClass(project.color, client?.id ?? null),
         )}
       >
-        <div className="space-y-3 px-4 py-3">
+        <div className='space-y-3 px-4 py-3'>
           {/* Title + status pill */}
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[13px] font-semibold">{project.name}</p>
-            <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <div className='flex items-start justify-between gap-2'>
+            <p className='text-[13px] font-semibold'>{project.name}</p>
+            <span className='rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold tracking-wide text-muted-foreground uppercase'>
               {project.status}
             </span>
           </div>
@@ -58,32 +65,35 @@ export function ProjectChip({
           )}
 
           {/* Meta line: client · dates · team dots */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className='flex items-center justify-between gap-2'>
+            <div className='flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground'>
               <span
                 className={cn(
-                  "size-2 shrink-0 rounded-full",
+                  'size-2 shrink-0 rounded-full',
                   projectDotColorClass(project.color, client?.id ?? null),
                 )}
               />
-              <span className="truncate">
-                {client?.name ?? "—"}
+              <span className='truncate'>
+                {client?.name ?? '—'}
                 {dateRange && ` · ${dateRange}`}
               </span>
               {usedMinutes > 0 && (
-                <span className="flex shrink-0 items-center gap-0.5">
-                  <TimerIcon className="size-2.5" />
+                <span className='flex shrink-0 items-center gap-0.5'>
+                  <TimerIcon className='size-2.5' />
                   {formatMinutes(usedMinutes)}
                 </span>
               )}
             </div>
             {team.length > 0 && (
-              <div className="flex shrink-0 items-center gap-1">
+              <div className='flex shrink-0 items-center gap-1'>
                 {team.map((profile) => (
                   <span
                     key={profile.id}
                     title={profile.name}
-                    className={cn("size-2 rounded-full", profileColorClass(profile.id))}
+                    className={cn(
+                      'size-2 rounded-full',
+                      profileColorClass(profile.id),
+                    )}
                   />
                 ))}
               </div>
