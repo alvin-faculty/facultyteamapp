@@ -30,6 +30,7 @@ import {
 const NAV_ITEMS = [
   { href: '/', label: 'Project Overview', icon: FolderKanbanIcon },
   { href: '/my-tasks', label: 'My Tasks', icon: ListChecksIcon },
+  { href: '/contacts', label: 'Contacts', icon: ListChecksIcon },
 ];
 
 const ADMIN_NAV_ITEMS = [
