@@ -6,6 +6,8 @@ export type ProjectStatus =
   | 'archived';
 export type UserRole = 'admin' | 'employee';
 
+export type Region = 'canada' | 'usa' | 'asia' | 'uk_europe';
+
 export interface AssetLink {
   label: string;
   url: string;
@@ -25,9 +27,27 @@ export interface Profile {
 export interface Client {
   id: string;
   name: string;
+  slug: string;
   contact_name: string | null;
+  contact_name_title: string | null;
   contact_email: string | null;
+  phone: string | null;
+  region: Region | null;
   notes: string | null;
+  created_at: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  slug: string;
+  contact_name: string | null;
+  contact_name_title: string | null;
+  contact_email: string | null;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
+  region: Region | null;
   created_at: string;
 }
 
@@ -156,6 +176,24 @@ export interface TimeEntry {
   created_at: string;
 }
 
+export interface ContactPerson {
+  id: string;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  created_at: string;
+}
+
+export interface ClientContact extends ContactPerson {
+  client_id: string;
+}
+
+export interface SupplierContact extends ContactPerson {
+  supplier_id: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -166,8 +204,46 @@ export interface Database {
       };
       clients: {
         Row: Client;
-        Insert: Partial<Client>;
+        Insert: Partial<Client> & { name: string };
         Update: Partial<Client>;
+      };
+      suppliers: {
+        Row: Supplier;
+        Insert: Partial<Supplier> & { name: string };
+        Update: Partial<Supplier>;
+      };
+      client_contacts: {
+        Row: ClientContact;
+        Insert: Partial<ClientContact> & { client_id: string; name: string };
+        Update: Partial<ClientContact>;
+      };
+      supplier_contacts: {
+        Row: SupplierContact;
+        Insert: Partial<SupplierContact> & {
+          supplier_id: string;
+          name: string;
+        };
+        Update: Partial<SupplierContact>;
+      };
+      client_slug_history: {
+        Row: {
+          id: string;
+          client_id: string;
+          slug: string;
+          created_at: string;
+        };
+        Insert: { client_id: string; slug: string };
+        Update: never;
+      };
+      supplier_slug_history: {
+        Row: {
+          id: string;
+          supplier_id: string;
+          slug: string;
+          created_at: string;
+        };
+        Insert: { supplier_id: string; slug: string };
+        Update: never;
       };
       projects: {
         Row: Project;

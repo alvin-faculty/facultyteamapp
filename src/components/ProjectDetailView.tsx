@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { EditProjectDialog } from '@/components/EditProjectDialog';
 import { ProjectComments } from '@/components/ProjectComments';
+import { Field, EditableField } from '@/components/EditableField';
 import {
   updateProjectBudgetHours,
   updateProjectDropboxUrl,
@@ -33,87 +34,6 @@ import type {
   TaskCommentWithAuthor,
   ProjectCommentWithAuthor,
 } from '@/lib/supabase/types';
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className='space-y-1'>
-      <p className='text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'>
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function EditableField({
-  label,
-  value,
-  displayValue,
-  onSave,
-  type = 'text',
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  displayValue?: ReactNode;
-  onSave: (value: string) => Promise<void>;
-  type?: string;
-  placeholder?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const [isPending, startTransition] = useTransition();
-
-  function save() {
-    startTransition(async () => {
-      try {
-        await onSave(draft);
-        setEditing(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to save');
-      }
-    });
-  }
-
-  return (
-    <Field label={label}>
-      {editing ? (
-        <Input
-          type={type}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => e.key === 'Enter' && save()}
-          disabled={isPending}
-          placeholder={placeholder}
-          autoFocus
-        />
-      ) : (
-        <div className='flex min-w-0 items-center gap-1.5'>
-          <div className='min-w-0 truncate text-sm'>
-            {displayValue ??
-              (value.trim() ? (
-                value
-              ) : (
-                <span className='text-muted-foreground'>—</span>
-              ))}
-          </div>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon-xs'
-            onClick={() => {
-              setDraft(value);
-              setEditing(true);
-            }}
-          >
-            <PencilIcon className='size-3' />
-          </Button>
-        </div>
-      )}
-    </Field>
-  );
-}
 
 function ProjectInfoBox({
   project,
