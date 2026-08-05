@@ -220,7 +220,7 @@ export function ProjectExplorer({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex items-center justify-between pl-5 pr-5'>
+      <div className='flex justify-between mt-8 mb-12 gap-12 pl-5 pr-5'>
         <h1>Project Overview</h1>
         <div className='flex gap-2'>
           <NewClientDialog />
@@ -236,7 +236,7 @@ export function ProjectExplorer({
               placeholder='Search projects…'
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className='h-10 rounded-lg pl-9'
+              className='h-10 pl-9'
             />
           </div>
 
@@ -310,7 +310,7 @@ export function ProjectExplorer({
         </div>
       </div>
 
-      <Tabs defaultValue='list' className='pl-5 pr-5'>
+      <Tabs defaultValue='list'>
         <TabsList>
           <TabsTrigger
             value='list'
@@ -326,75 +326,77 @@ export function ProjectExplorer({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value='list' className='space-y-6 pt-4'>
-          {STATUSES.map((status, statusIndex) => {
-            const items = sorted.filter(
-              (s) => s.project.status === status.value,
-            );
-            if (items.length === 0) return null;
-            return (
-              <div key={status.value} className='space-y-3'>
-                <div className='flex items-center gap-2'>
-                  <span
-                    className={cn(
-                      'size-2 rounded-full',
-                      sectionColorClass(statusIndex),
-                    )}
-                  />
-                  <span className='text-[11px] font-semibold tracking-[0.05em] uppercase'>
-                    {status.label}
-                  </span>
-                  <span className='rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground'>
-                    {items.length}
-                  </span>
+        <div className='space-y-6 pl-5 pr-5'>
+          <TabsContent value='list' className='space-y-6 pt-4'>
+            {STATUSES.map((status, statusIndex) => {
+              const items = sorted.filter(
+                (s) => s.project.status === status.value,
+              );
+              if (items.length === 0) return null;
+              return (
+                <div key={status.value} className='space-y-3'>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={cn(
+                        'size-2 rounded-full',
+                        sectionColorClass(statusIndex),
+                      )}
+                    />
+                    <span className='text-[11px] font-semibold tracking-[0.05em] uppercase'>
+                      {status.label}
+                    </span>
+                    <span className='rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground'>
+                      {items.length}
+                    </span>
+                  </div>
+                  <div className='grid grid-cols-12 gap-6'>
+                    {items.map((s) => (
+                      <div
+                        key={s.project.id}
+                        className='col-span-12 sm:col-span-6 lg:col-span-4'
+                      >
+                        <ProjectChip
+                          project={s.project}
+                          client={s.client}
+                          usedMinutes={s.usedMinutes}
+                          usedAmount={s.usedAmount}
+                          team={s.team}
+                          isAdmin={isAdmin}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className='grid grid-cols-12 gap-6'>
-                  {items.map((s) => (
-                    <div
-                      key={s.project.id}
-                      className='col-span-12 sm:col-span-6 lg:col-span-4'
-                    >
-                      <ProjectChip
-                        project={s.project}
-                        client={s.client}
-                        usedMinutes={s.usedMinutes}
-                        usedAmount={s.usedAmount}
-                        team={s.team}
-                        isAdmin={isAdmin}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {sorted.length === 0 && (
-            <p className='text-sm text-muted-foreground'>
-              No projects match this filter.
-            </p>
-          )}
-        </TabsContent>
+              );
+            })}
+            {sorted.length === 0 && (
+              <p className='text-sm text-muted-foreground'>
+                No projects match this filter.
+              </p>
+            )}
+          </TabsContent>
 
-        <TabsContent value='board' className='pt-4'>
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className='flex gap-4 overflow-x-auto pb-2'>
-              {columnsToShow.map((status) => (
-                <BoardColumn
-                  key={status.value}
-                  status={status.value}
-                  label={status.label}
-                  colorIndex={STATUSES.findIndex(
-                    (s) => s.value === status.value,
-                  )}
-                  items={sorted.filter(
-                    (s) => s.project.status === status.value,
-                  )}
-                  isAdmin={isAdmin}
-                />
-              ))}
-            </div>
-          </DndContext>
-        </TabsContent>
+          <TabsContent value='board' className='pt-4'>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <div className='flex gap-4 overflow-x-auto pb-2'>
+                {columnsToShow.map((status) => (
+                  <BoardColumn
+                    key={status.value}
+                    status={status.value}
+                    label={status.label}
+                    colorIndex={STATUSES.findIndex(
+                      (s) => s.value === status.value,
+                    )}
+                    items={sorted.filter(
+                      (s) => s.project.status === status.value,
+                    )}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            </DndContext>
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

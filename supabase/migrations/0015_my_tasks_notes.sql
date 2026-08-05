@@ -1,0 +1,1 @@
+alter table my_tasks add column notes text;
