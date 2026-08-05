@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { SearchIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -55,8 +54,8 @@ function matchesQuery(
 function ClientCard({ client }: { client: Client }) {
   return (
     <Link href={`/clients/${client.slug}`}>
-      <Card className='transition-colors hover:bg-muted/50'>
-        <CardContent className='space-y-1 py-4'>
+      <Card className='cursor-pointer rounded-lg bg-card transition-colors hover:bg-muted/40 ring-0'>
+        <CardContent className='space-y-1 py-0'>
           <p className='text-sm font-semibold'>{client.name}</p>
           {client.contact_name && (
             <p className='text-sm text-muted-foreground'>
@@ -83,8 +82,8 @@ function ClientCard({ client }: { client: Client }) {
 function SupplierCard({ supplier }: { supplier: Supplier }) {
   return (
     <Link href={`/suppliers/${supplier.slug}`}>
-      <Card className='transition-colors hover:bg-muted/50'>
-        <CardContent className='space-y-1 py-4'>
+      <Card className='cursor-pointer rounded-lg bg-card transition-colors hover:bg-muted/40 ring-0'>
+        <CardContent className='space-y-1 py-0'>
           <p className='text-sm font-semibold'>{supplier.name}</p>
           {supplier.contact_name && (
             <p className='text-sm text-muted-foreground'>
@@ -120,10 +119,8 @@ function RegionSection<T>({
   if (items.length === 0) return null;
 
   return (
-    <div className='space-y-3'>
-      <h2 className='text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'>
-        {REGION_LABELS[region]}
-      </h2>
+    <div className='pt-8 pr-5 pb-14 pl-5 mb-0 border-b border-b-[#e3e3e3] first:border-t first:border-t-[#e3e3e3] last:border-b-0'>
+      <h4 className='mb-4'>{REGION_LABELS[region]}</h4>
       <div className='grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3'>
         {items.map((item, i) => (
           <div key={i}>{renderItem(item)}</div>
@@ -156,16 +153,19 @@ export function ContactsView({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex items-center justify-between gap-4'>
+      <div className='flex flex-col justify-between mt-8 mb-12 gap-12 pl-5 pr-5'>
         <h1>Contacts</h1>
-        <div className='relative w-full max-w-xs'>
-          <SearchIcon className='absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground' />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder='Search contacts…'
-            className='pl-8'
-          />
+        <div className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+          <div className='relative w-full max-w-xs'>
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Search contacts…'
+            />
+          </div>
+          <div className='flex justify-end'>
+            <NewClientDialog />
+          </div>
         </div>
       </div>
 
@@ -176,9 +176,6 @@ export function ContactsView({
         </TabsList>
 
         <TabsContent value='clients' className='space-y-6'>
-          <div className='flex justify-end'>
-            <NewClientDialog />
-          </div>
           {filteredClients.length === 0 ? (
             <p className='text-sm text-muted-foreground'>
               {query ? 'No clients match your search.' : 'No clients yet.'}

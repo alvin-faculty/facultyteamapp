@@ -116,6 +116,29 @@ export type TaskCommentWithAuthor = TaskComment & {
   profiles?: { name: string } | null;
 };
 
+export type MyTaskCategory = 'studio' | 'sort' | 'personal';
+export type MyTaskStatus = 'not_started' | 'in_progress' | 'waiting' | 'done';
+
+export interface MyTask {
+  id: string;
+  user_id: string;
+  category: MyTaskCategory;
+  title: string | null;
+  notes: string | null;
+  status: MyTaskStatus;
+  project_task_id: string | null;
+  position: number;
+  created_at: string;
+}
+
+export type MyTaskWithDetails = MyTask & {
+  tasks?: {
+    title: string;
+    project_id: string;
+    projects?: { name: string } | null;
+  } | null;
+};
+
 export interface ProjectComment {
   id: string;
   project_id: string;
@@ -263,6 +286,11 @@ export interface Database {
         Row: TaskAssignee;
         Insert: Partial<TaskAssignee> & { task_id: string; user_id: string };
         Update: Partial<TaskAssignee>;
+      };
+      my_tasks: {
+        Row: MyTask;
+        Insert: Partial<MyTask> & { user_id: string; category: MyTaskCategory };
+        Update: Partial<MyTask>;
       };
       sections: {
         Row: Section;
