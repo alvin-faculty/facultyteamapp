@@ -17,17 +17,19 @@ export async function assignTaskMember(
 
   const { error: myTaskError } = await supabase
     .from('my_tasks')
-    .upsert(
-      {
-        user_id: userId,
-        category: 'studio',
-        project_task_id: taskId,
-        status: 'not_started',
-        position: 0,
-      },
-      { onConflict: 'user_id,project_task_id', ignoreDuplicates: true },
-    );
-  if (myTaskError) throw new Error(myTaskError.message);
+    .insert({
+      user_id: userId,
+      category: 'studio',
+      project_task_id: taskId,
+      status: 'not_started',
+      position: 0,
+    });
+
+  // 23505 = unique violation — a Studio card for this user+task already exists,
+  // which is fine, nothing to do. Any other error is a real problem.
+  if (myTaskError && myTaskError.code !== '23505') {
+    throw new Error(myTaskError.message);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath('/my-tasks');
@@ -40,13 +42,6 @@ export async function unassignTaskMember(
 ) {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase
-    .from('task_assignees')
-    .delete()
-    .eq('task_id', taskId)
-    .eq('user_id', userId);
-  if (error) throw new Error(error.message);
-
   const { error: myTaskError } = await supabase
     .from('my_tasks')
     .delete()
@@ -54,6 +49,13 @@ export async function unassignTaskMember(
     .eq('project_task_id', taskId)
     .eq('category', 'studio');
   if (myTaskError) throw new Error(myTaskError.message);
+
+  const { error } = await supabase
+    .from('task_assignees')
+    .delete()
+    .eq('task_id', taskId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath('/my-tasks');
