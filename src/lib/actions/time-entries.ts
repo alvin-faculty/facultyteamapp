@@ -145,6 +145,53 @@ export async function createManualEntry(formData: FormData) {
   revalidatePath('/', 'layout');
 }
 
+export async function updateTimeEntry(entryId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const date = String(formData.get('date'));
+  const hours = Number(formData.get('hours'));
+  const description = (formData.get('description') as string) || null;
+  const billable = formData.get('billable') === 'on';
+
+  if (!date || !Number.isFinite(hours) || hours <= 0) {
+    throw new Error('Please enter a valid date and duration');
+  }
+
+  const { data: entry } = await supabase
+    .from('time_entries')
+    .select('started_at')
+    .eq('id', entryId)
+    .single();
+  if (!entry) throw new Error('Entry not found');
+
+  // Keep the original time-of-day, just move it to the new date, so a real
+  // timer session's actual clock time isn't silently reset to a fake anchor.
+  const originalTime = new Date(entry.started_at);
+  const [year, month, day] = date.split('-').map(Number);
+  const started_at = new Date(
+    year,
+    month - 1,
+    day,
+    originalTime.getHours(),
+    originalTime.getMinutes(),
+    originalTime.getSeconds(),
+  ).toISOString();
+
+  const duration_minutes = Math.round(hours * 60);
+  const ended_at = new Date(
+    new Date(started_at).getTime() + duration_minutes * 60000,
+  ).toISOString();
+
+  const { error } = await supabase
+    .from('time_entries')
+    .update({ started_at, ended_at, duration_minutes, description, billable })
+    .eq('id', entryId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/tracked-time');
+  revalidatePath('/my-time');
+}
+
 export async function updateTimeEntryDuration(entryId: string, hours: number) {
   const supabase = await createClient();
 
