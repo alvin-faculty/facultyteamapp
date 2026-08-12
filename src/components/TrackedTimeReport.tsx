@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PencilIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, PencilIcon } from 'lucide-react';
 import { updateTimeEntry } from '@/lib/actions/time-entries';
 import { profileColorClass } from '@/lib/profile-color';
 import { projectDotColorClass } from '@/lib/project-color';
@@ -119,6 +119,7 @@ interface GroupedEntry {
   count: number;
   earliestStart: string;
   latestEnd: string | null;
+  sessions: TrackedEntry[];
 }
 
 function groupEntries(dayEntries: TrackedEntry[]): GroupedEntry[] {
@@ -132,6 +133,7 @@ function groupEntries(dayEntries: TrackedEntry[]): GroupedEntry[] {
       existing.amount += entryAmount(e);
       existing.count += 1;
       existing.billable = existing.billable || e.billable;
+      existing.sessions.push(e);
       if (e.started_at < existing.earliestStart)
         existing.earliestStart = e.started_at;
       if (
@@ -157,8 +159,12 @@ function groupEntries(dayEntries: TrackedEntry[]): GroupedEntry[] {
         count: 1,
         earliestStart: e.started_at,
         latestEnd: e.ended_at,
+        sessions: [e],
       });
     }
+  }
+  for (const g of map.values()) {
+    g.sessions.sort((a, b) => a.started_at.localeCompare(b.started_at));
   }
   return Array.from(map.values()).sort((a, b) =>
     b.earliestStart.localeCompare(a.earliestStart),
@@ -200,23 +206,32 @@ function BarRow({
   );
 }
 
+interface EditableEntry {
+  id: string;
+  started_at: string;
+  duration_minutes: number | null;
+  description: string | null;
+  billable: boolean;
+}
+
 function EditEntryDialog({
   entry,
   open,
   onOpenChange,
 }: {
-  entry: GroupedEntry;
+  entry: EditableEntry;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [date, setDate] = useState(() => dayKey(entry.earliestStart));
-  const [hours, setHours] = useState(() => (entry.minutes / 60).toString());
+  const [date, setDate] = useState(() => dayKey(entry.started_at));
+  const [hours, setHours] = useState(() =>
+    ((entry.duration_minutes ?? 0) / 60).toString(),
+  );
   const [description, setDescription] = useState(entry.description ?? '');
   const [billable, setBillable] = useState(entry.billable);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
-    if (!entry.id) return;
     const formData = new FormData();
     formData.set('date', date);
     formData.set('hours', hours);
@@ -225,7 +240,7 @@ function EditEntryDialog({
 
     startTransition(async () => {
       try {
-        await updateTimeEntry(entry.id!, formData);
+        await updateTimeEntry(entry.id, formData);
         toast.success('Entry updated');
         onOpenChange(false);
       } catch (err) {
@@ -297,6 +312,51 @@ function EditEntryDialog({
   );
 }
 
+function SessionRow({ session }: { session: TrackedEntry }) {
+  const [editOpen, setEditOpen] = useState(false);
+
+  return (
+    <>
+      <div className='flex items-center gap-3 py-2 pl-9 text-sm'>
+        <span className='min-w-0 flex-1 truncate text-muted-foreground'>
+          {session.description || '—'}
+        </span>
+        {!session.billable && (
+          <span className='shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground uppercase'>
+            Non-billable
+          </span>
+        )}
+        <span className='hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground sm:inline'>
+          {formatTimeOfDay(session.started_at)}
+          {session.ended_at && <> – {formatTimeOfDay(session.ended_at)}</>}
+        </span>
+        <span className='shrink-0 font-mono text-xs text-muted-foreground'>
+          {formatMinutes(session.duration_minutes ?? 0)}
+        </span>
+        <span className='w-20 shrink-0 text-right text-muted-foreground'>
+          {session.billable && entryAmount(session) > 0
+            ? formatCurrency(entryAmount(session))
+            : '—'}
+        </span>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon-xs'
+          className='shrink-0'
+          onClick={() => setEditOpen(true)}
+        >
+          <PencilIcon className='size-3' />
+        </Button>
+      </div>
+      <EditEntryDialog
+        entry={session}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+    </>
+  );
+}
+
 function EntryRow({
   entry,
   router,
@@ -305,19 +365,32 @@ function EntryRow({
   router: ReturnType<typeof useRouter>;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const isGrouped = entry.count > 1;
 
   return (
     <>
       <div
         onClick={() =>
-          router.push(
-            entry.task_id
-              ? `/projects/${entry.project_id}?task=${entry.task_id}`
-              : `/projects/${entry.project_id}`,
-          )
+          isGrouped
+            ? setExpanded((v) => !v)
+            : router.push(
+                entry.task_id
+                  ? `/projects/${entry.project_id}?task=${entry.task_id}`
+                  : `/projects/${entry.project_id}`,
+              )
         }
         className='flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40'
       >
+        {isGrouped ? (
+          expanded ? (
+            <ChevronDownIcon className='size-3.5 shrink-0 text-muted-foreground' />
+          ) : (
+            <ChevronRightIcon className='size-3.5 shrink-0 text-muted-foreground' />
+          )
+        ) : (
+          <span className='size-3.5 shrink-0' />
+        )}
         <span
           className={cn(
             'size-2 shrink-0 rounded-full',
@@ -328,7 +401,7 @@ function EntryRow({
           {entry.user_name}
         </span>
         <span className='min-w-0 flex-1 truncate'>
-          <span className='font-medium'>{entry.project_name}</span>
+          <span className='font-light'>{entry.project_name}</span>
           {entry.task_title && (
             <span className='text-muted-foreground'> · {entry.task_title}</span>
           )}
@@ -359,7 +432,7 @@ function EntryRow({
             ? formatDurationBetween(entry.earliestStart, entry.latestEnd)
             : formatMinutes(entry.minutes)}
         </span>
-        <span className='w-20 shrink-0 text-right font-medium'>
+        <span className='w-20 shrink-0 text-right font-light'>
           {entry.billable && entry.amount > 0
             ? formatCurrency(entry.amount)
             : '—'}
@@ -378,10 +451,24 @@ function EntryRow({
             <PencilIcon className='size-3' />
           </Button>
         )}
+        {isGrouped && <span className='size-6 shrink-0' />}
       </div>
+      {expanded && isGrouped && (
+        <div className='divide-y border-t bg-muted/20'>
+          {entry.sessions.map((session) => (
+            <SessionRow key={session.id} session={session} />
+          ))}
+        </div>
+      )}
       {entry.id && (
         <EditEntryDialog
-          entry={entry}
+          entry={{
+            id: entry.id,
+            started_at: entry.earliestStart,
+            duration_minutes: entry.minutes,
+            description: entry.description,
+            billable: entry.billable,
+          }}
           open={editOpen}
           onOpenChange={setEditOpen}
         />
@@ -493,8 +580,8 @@ export function TrackedTimeReport({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex items-center justify-between gap-2'>
-        <h1 className='text-2xl font-semibold'>Tracked Time</h1>
+      <div className='flex items-center justify-between mt-8 mb-12 pl-5 pr-5 gap-2'>
+        <h1>Tracked Time</h1>
         <Select
           value={range}
           onValueChange={(v) => setRange((v as RangeKey) ?? 'week')}
@@ -513,7 +600,7 @@ export function TrackedTimeReport({
         </Select>
       </div>
 
-      <div className='grid grid-cols-3 gap-4'>
+      <div className='grid grid-cols-3 gap-4 pl-5 pr-5'>
         <div className='rounded-xl border bg-card p-4'>
           <p className='text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'>
             Total time
@@ -540,7 +627,7 @@ export function TrackedTimeReport({
 
       <div
         className={cn(
-          'grid gap-6',
+          'grid gap-6 pl-5 pr-5',
           showByPerson ? 'grid-cols-2' : 'grid-cols-1',
         )}
       >
@@ -601,20 +688,18 @@ export function TrackedTimeReport({
         )}
       </div>
 
-      <div className='space-y-3'>
-        <p className='text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'>
-          Tracked Time Summary
-        </p>
+      <div className='space-y-3 pl-5 pr-5'>
+        <h4>Tracked Time Summary</h4>
         <div className='overflow-x-auto rounded-xl border bg-card'>
           <table className='w-full text-sm'>
             <thead>
               <tr className='border-b text-xs text-muted-foreground'>
-                <th className='px-4 py-2 text-left font-medium'>Day</th>
+                <th className='px-4 py-2 text-left font-light'>Day</th>
                 {showByPerson &&
                   teamMembers.map((m) => (
                     <th
                       key={m.id}
-                      className='px-4 py-2 text-right font-medium whitespace-nowrap'
+                      className='px-4 py-2 text-right font-light whitespace-nowrap'
                     >
                       <span className='flex items-center justify-end gap-1.5'>
                         <span
@@ -627,7 +712,7 @@ export function TrackedTimeReport({
                       </span>
                     </th>
                   ))}
-                <th className='px-4 py-2 text-right font-medium'>Total</th>
+                <th className='px-4 py-2 text-right font-light'>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -665,7 +750,7 @@ export function TrackedTimeReport({
                           </td>
                         );
                       })}
-                    <td className='px-4 py-2 text-right font-medium'>
+                    <td className='px-4 py-2 text-right font-light'>
                       {formatMinutes(dayTotal)}
                     </td>
                   </tr>
@@ -675,12 +760,12 @@ export function TrackedTimeReport({
             {byDay.length > 0 && (
               <tfoot>
                 <tr className='border-t bg-muted/30'>
-                  <td className='px-4 py-2 font-medium'>Total</td>
+                  <td className='px-4 py-2 font-light'>Total</td>
                   {showByPerson &&
                     memberTotals.map((m) => (
                       <td
                         key={m.id}
-                        className='px-4 py-2 text-right font-medium'
+                        className='px-4 py-2 text-right font-light'
                       >
                         {m.minutes > 0 ? formatMinutes(m.minutes) : '—'}
                       </td>
@@ -695,10 +780,8 @@ export function TrackedTimeReport({
         </div>
       </div>
 
-      <div className='space-y-4'>
-        <p className='text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'>
-          Entries
-        </p>
+      <div className='space-y-4 pl-5 pr-5'>
+        <h4>Entries</h4>
         {byDay.length === 0 && (
           <p className='text-sm text-muted-foreground'>
             No tracked time in this range.
@@ -713,7 +796,7 @@ export function TrackedTimeReport({
           return (
             <div key={day} className='space-y-1.5'>
               <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                <span className='font-medium text-foreground'>
+                <span className='font-light text-foreground'>
                   {dayLabel(day)}
                 </span>
                 <span>{formatMinutes(dayMinutes)}</span>
