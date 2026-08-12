@@ -20,8 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDownIcon, ChevronRightIcon, PencilIcon } from 'lucide-react';
-import { updateTimeEntry } from '@/lib/actions/time-entries';
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  TrashIcon,
+} from 'lucide-react';
+import { updateTimeEntry, deleteTimeEntry } from '@/lib/actions/time-entries';
 import { profileColorClass } from '@/lib/profile-color';
 import { projectDotColorClass } from '@/lib/project-color';
 import {
@@ -232,6 +237,12 @@ function EditEntryDialog({
   const [isPending, startTransition] = useTransition();
 
   function submit() {
+    const hoursNum = Number(hours);
+    if (!date || !Number.isFinite(hoursNum) || hoursNum <= 0) {
+      toast.error('Please enter a valid date and duration');
+      return;
+    }
+
     const formData = new FormData();
     formData.set('date', date);
     formData.set('hours', hours);
@@ -301,7 +312,7 @@ function EditEntryDialog({
           </div>
           <Button
             className='w-full'
-            disabled={isPending || !date || !hours}
+            disabled={isPending || !date || !hours || Number(hours) <= 0}
             onClick={submit}
           >
             Save changes
@@ -314,6 +325,21 @@ function EditEntryDialog({
 
 function SessionRow({ session }: { session: TrackedEntry }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function remove() {
+    if (!confirm('Delete this time entry? This cannot be undone.')) return;
+    startTransition(async () => {
+      try {
+        await deleteTimeEntry(session.id);
+        toast.success('Entry deleted');
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to delete entry',
+        );
+      }
+    });
+  }
 
   return (
     <>
@@ -347,6 +373,15 @@ function SessionRow({ session }: { session: TrackedEntry }) {
         >
           <PencilIcon className='size-3' />
         </Button>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon-xs'
+          disabled={isPending}
+          onClick={remove}
+        >
+          <TrashIcon className='size-3' />
+        </Button>
       </div>
       <EditEntryDialog
         entry={session}
@@ -366,7 +401,23 @@ function EntryRow({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const isGrouped = entry.count > 1;
+
+  function remove() {
+    if (!entry.id) return;
+    if (!confirm('Delete this time entry? This cannot be undone.')) return;
+    startTransition(async () => {
+      try {
+        await deleteTimeEntry(entry.id!);
+        toast.success('Entry deleted');
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to delete entry',
+        );
+      }
+    });
+  }
 
   return (
     <>
@@ -401,7 +452,7 @@ function EntryRow({
           {entry.user_name}
         </span>
         <span className='min-w-0 flex-1 truncate'>
-          <span className='font-light'>{entry.project_name}</span>
+          <span className='font-medium'>{entry.project_name}</span>
           {entry.task_title && (
             <span className='text-muted-foreground'> · {entry.task_title}</span>
           )}
@@ -432,26 +483,39 @@ function EntryRow({
             ? formatDurationBetween(entry.earliestStart, entry.latestEnd)
             : formatMinutes(entry.minutes)}
         </span>
-        <span className='w-20 shrink-0 text-right font-light'>
+        <span className='w-20 shrink-0 text-right font-medium'>
           {entry.billable && entry.amount > 0
             ? formatCurrency(entry.amount)
             : '—'}
         </span>
         {entry.id && (
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon-xs'
-            className='shrink-0'
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditOpen(true);
-            }}
-          >
-            <PencilIcon className='size-3' />
-          </Button>
+          <div className='flex shrink-0 items-center gap-0.5'>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon-xs'
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditOpen(true);
+              }}
+            >
+              <PencilIcon className='size-3' />
+            </Button>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon-xs'
+              disabled={isPending}
+              onClick={(e) => {
+                e.stopPropagation();
+                remove();
+              }}
+            >
+              <TrashIcon className='size-3' />
+            </Button>
+          </div>
         )}
-        {isGrouped && <span className='size-6 shrink-0' />}
+        {isGrouped && <span className='size-[52px] shrink-0' />}
       </div>
       {expanded && isGrouped && (
         <div className='divide-y border-t bg-muted/20'>
