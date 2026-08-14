@@ -220,6 +220,19 @@ export async function updateTimeEntryDuration(entryId: string, hours: number) {
   revalidatePath('/', 'layout');
 }
 
+export async function deleteTimeEntry(entryId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('time_entries')
+    .delete()
+    .eq('id', entryId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/tracked-time');
+  revalidatePath('/my-time');
+}
+
 export async function stopTimer(entryId: string) {
   const supabase = await createClient();
   const { data: entry } = await supabase
