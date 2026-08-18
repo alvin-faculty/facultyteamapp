@@ -16,7 +16,7 @@ export default async function MyTasksPage() {
       .order('position'),
     supabase
       .from('time_entries')
-      .select('*, projects(name), tasks(title)')
+      .select('*, projects(name), tasks(title), my_tasks(title)')
       .eq('user_id', profile.id)
       .is('ended_at', null)
       .maybeSingle(),

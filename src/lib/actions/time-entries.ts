@@ -8,6 +8,7 @@ import type { TimeEntry } from '@/lib/supabase/types';
 export type RunningTimeEntry = TimeEntry & {
   projects: { name: string } | null;
   tasks: { title: string } | null;
+  my_tasks: { title: string | null } | null;
 };
 
 async function resolveRate(projectId: string, userId: string) {
@@ -21,6 +22,16 @@ async function resolveRate(projectId: string, userId: string) {
     supabase.from('profiles').select('hourly_rate').eq('id', userId).single(),
   ]);
   return project?.hourly_rate_override ?? profile?.hourly_rate ?? 0;
+}
+
+async function resolvePersonalRate(userId: string) {
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('hourly_rate')
+    .eq('id', userId)
+    .single();
+  return profile?.hourly_rate ?? 0;
 }
 
 async function resolveTaskBillable(taskId: string | null) {
@@ -81,6 +92,47 @@ export async function startTimer(
   }
 
   revalidatePath('/', 'layout');
+}
+
+export async function startMyTaskTimer(myTaskId: string, description: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  await stopAnyRunningTimer(user.id);
+
+  const rate_snapshot = await resolvePersonalRate(user.id);
+
+  const insertPayload = {
+    project_id: null,
+    task_id: null,
+    my_task_id: myTaskId,
+    user_id: user.id,
+    description: description || null,
+    started_at: new Date().toISOString(),
+    ended_at: null,
+    billable: false,
+    rate_snapshot,
+  };
+
+  const { error } = await supabase.from('time_entries').insert(insertPayload);
+
+  if (error) {
+    if (error.code === '23505') {
+      await stopAnyRunningTimer(user.id);
+      const { error: retryError } = await supabase
+        .from('time_entries')
+        .insert(insertPayload);
+      if (retryError) throw new Error(retryError.message);
+    } else {
+      throw new Error(error.message);
+    }
+  }
+
+  revalidatePath('/', 'layout');
+  revalidatePath('/my-tasks');
 }
 
 async function stopAnyRunningTimer(userId: string) {

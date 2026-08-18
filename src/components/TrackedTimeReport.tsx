@@ -47,12 +47,14 @@ export interface TrackedEntry {
   description: string | null;
   user_id: string;
   user_name: string;
-  project_id: string;
-  project_name: string;
+  project_id: string | null;
+  project_name: string | null;
   project_color: string | null;
   client_id: string | null;
   task_id: string | null;
   task_title: string | null;
+  my_task_id: string | null;
+  my_task_title: string | null;
 }
 
 interface TeamMember {
@@ -113,8 +115,8 @@ interface GroupedEntry {
   id: string | null;
   user_id: string;
   user_name: string;
-  project_id: string;
-  project_name: string;
+  project_id: string | null;
+  project_name: string | null;
   task_id: string | null;
   task_title: string | null;
   description: string | null;
@@ -130,7 +132,7 @@ interface GroupedEntry {
 function groupEntries(dayEntries: TrackedEntry[]): GroupedEntry[] {
   const map = new Map<string, GroupedEntry>();
   for (const e of dayEntries) {
-    const key = `${e.user_id}|${e.project_id}|${e.task_id ?? ''}`;
+    const key = `${e.user_id}|${e.project_id ?? 'personal'}|${e.task_id ?? e.my_task_id ?? ''}`;
     const existing = map.get(key);
     if (existing) {
       existing.id = null;
@@ -425,11 +427,13 @@ function EntryRow({
         onClick={() =>
           isGrouped
             ? setExpanded((v) => !v)
-            : router.push(
-                entry.task_id
-                  ? `/projects/${entry.project_id}?task=${entry.task_id}`
-                  : `/projects/${entry.project_id}`,
-              )
+            : entry.project_id
+              ? router.push(
+                  entry.task_id
+                    ? `/projects/${entry.project_id}?task=${entry.task_id}`
+                    : `/projects/${entry.project_id}`,
+                )
+              : router.push('/my-tasks')
         }
         className='flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40'
       >
@@ -570,15 +574,16 @@ export function TrackedTimeReport({
       { name: string; color: string | null; minutes: number; amount: number }
     >();
     for (const e of filtered) {
-      const entry = map.get(e.project_id) ?? {
-        name: e.project_name,
+      const key = e.project_id ?? 'personal';
+      const entry = map.get(key) ?? {
+        name: e.project_name ?? 'Personal',
         color: e.project_color,
         minutes: 0,
         amount: 0,
       };
       entry.minutes += e.duration_minutes ?? 0;
       entry.amount += entryAmount(e);
-      map.set(e.project_id, entry);
+      map.set(key, entry);
     }
     return Array.from(map.entries())
       .map(([id, v]) => ({ id, ...v }))

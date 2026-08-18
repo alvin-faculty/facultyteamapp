@@ -187,6 +187,7 @@ export interface TimeEntry {
   id: string;
   project_id: string;
   task_id: string | null;
+  my_task_id: string | null;
   user_id: string;
   description: string | null;
   started_at: string;
