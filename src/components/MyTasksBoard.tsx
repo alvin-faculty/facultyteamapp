@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import {
   startTimer,
+  startMyTaskTimer,
   stopTimer,
   type RunningTimeEntry,
 } from '@/lib/actions/time-entries';
@@ -281,6 +282,91 @@ function MyTaskTimerControl({
   );
 }
 
+function FreeformTimerControl({
+  myTaskId,
+  runningEntry,
+}: {
+  myTaskId: string;
+  runningEntry: RunningTimeEntry | null;
+}) {
+  const { lastEntry, isRunning, freeze } = useTimerDisplay(
+    runningEntry,
+    runningEntry?.my_task_id === myTaskId,
+  );
+  const [isPending, startTransition] = useTransition();
+  const [elapsed, setElapsed] = useState(0);
+  const [frozenSeconds, setFrozenSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!isRunning || !runningEntry) return;
+    const tick = () =>
+      setElapsed(
+        Math.floor(
+          (Date.now() - new Date(runningEntry.started_at).getTime()) / 1000,
+        ),
+      );
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [isRunning, runningEntry]);
+
+  function handleStop() {
+    if (!runningEntry) return;
+    const seconds = Math.floor(
+      (Date.now() - new Date(runningEntry.started_at).getTime()) / 1000,
+    );
+    setFrozenSeconds(seconds);
+    freeze({
+      ...runningEntry,
+      ended_at: new Date().toISOString(),
+      duration_minutes: Math.round(seconds / 60),
+    });
+    startTransition(() => stopTimer(runningEntry.id));
+  }
+
+  return (
+    <div
+      className='flex shrink-0 items-center gap-1.5'
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {isRunning && (
+        <span className='font-mono text-[10px] tabular-nums text-muted-foreground'>
+          {formatElapsed(elapsed)}
+        </span>
+      )}
+      {!isRunning && lastEntry && (
+        <InlineDurationEdit
+          entryId={lastEntry.id}
+          seconds={frozenSeconds}
+          onSaved={setFrozenSeconds}
+          className='text-[10px] text-muted-foreground'
+        />
+      )}
+      <Button
+        type='button'
+        size='icon-xs'
+        className={cn(
+          'rounded-full',
+          isRunning &&
+            'bg-destructive text-destructive-foreground hover:bg-destructive/80',
+        )}
+        disabled={isPending}
+        onClick={() =>
+          isRunning && runningEntry
+            ? handleStop()
+            : startTransition(() => startMyTaskTimer(myTaskId, ''))
+        }
+      >
+        {isRunning ? (
+          <SquareIcon className='size-2.5 fill-current' />
+        ) : (
+          <PlayIcon className='size-2.5 fill-current' />
+        )}
+      </Button>
+    </div>
+  );
+}
+
 function MyTaskCard({
   item,
   runningEntry,
@@ -359,6 +445,14 @@ function MyTaskCard({
           <p className='line-clamp-2 text-xs text-muted-foreground'>
             {item.notes}
           </p>
+        )}
+        {!isLinked && (
+          <div className='flex justify-end'>
+            <FreeformTimerControl
+              myTaskId={item.id}
+              runningEntry={runningEntry}
+            />
+          </div>
         )}
         {isLinked && item.tasks?.project_id && (
           <div className='flex items-center justify-between gap-2'>
@@ -490,7 +584,13 @@ function StatusBoard({
   );
 }
 
-function PersonalList({ items }: { items: MyTaskWithDetails[] }) {
+function PersonalList({
+  items,
+  runningEntry,
+}: {
+  items: MyTaskWithDetails[];
+  runningEntry: RunningTimeEntry | null;
+}) {
   return (
     <div className='flex h-[70vh] w-full max-w-md flex-col rounded-lg border bg-card p-2'>
       <div className='flex items-center justify-between px-1 pb-2'>
@@ -504,7 +604,7 @@ function PersonalList({ items }: { items: MyTaskWithDetails[] }) {
           </p>
         ) : (
           items.map((item) => (
-            <MyTaskCard key={item.id} item={item} runningEntry={null} />
+            <MyTaskCard key={item.id} item={item} runningEntry={runningEntry} />
           ))
         )}
       </div>
@@ -540,10 +640,14 @@ export function MyTasksBoard({
           />
         </TabsContent>
         <TabsContent value='sort'>
-          <StatusBoard category='sort' items={sortItems} runningEntry={null} />
+          <StatusBoard
+            category='sort'
+            items={sortItems}
+            runningEntry={runningEntry}
+          />
         </TabsContent>
         <TabsContent value='personal'>
-          <PersonalList items={personalItems} />
+          <PersonalList items={personalItems} runningEntry={runningEntry} />
         </TabsContent>
       </div>
     </Tabs>

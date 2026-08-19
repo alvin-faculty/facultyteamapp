@@ -14,11 +14,13 @@ interface TimeEntryRow {
   rate_snapshot: number;
   description: string | null;
   user_id: string;
-  project_id: string;
+  project_id: string | null;
   task_id: string | null;
+  my_task_id: string | null;
   profiles: { name: string } | null;
   projects: { name: string; color: string | null; client_id: string } | null;
   tasks: { title: string } | null;
+  my_tasks: { title: string | null } | null;
 }
 
 export default async function MyTimePage() {
@@ -28,7 +30,7 @@ export default async function MyTimePage() {
   const { data: entries } = await supabase
     .from('time_entries')
     .select(
-      'id, started_at, ended_at, duration_minutes, billable, rate_snapshot, description, user_id, project_id, task_id, profiles(name), projects(name, color, client_id), tasks(title)',
+      'id, started_at, ended_at, duration_minutes, billable, rate_snapshot, description, user_id, project_id, task_id, my_task_id, profiles(name), projects(name, color, client_id), tasks(title), my_tasks(title)',
     )
     .eq('user_id', profile.id)
     .not('ended_at', 'is', null)
@@ -36,25 +38,25 @@ export default async function MyTimePage() {
 
   const rows = (entries as unknown as TimeEntryRow[]) ?? [];
 
-  const trackedEntries: TrackedEntry[] = rows
-    .filter((e) => e.projects)
-    .map((e) => ({
-      id: e.id,
-      started_at: e.started_at,
-      ended_at: e.ended_at,
-      duration_minutes: e.duration_minutes,
-      billable: e.billable,
-      rate_snapshot: e.rate_snapshot,
-      description: e.description,
-      user_id: e.user_id,
-      user_name: e.profiles?.name ?? 'Someone',
-      project_id: e.project_id,
-      project_name: e.projects!.name,
-      project_color: e.projects!.color,
-      client_id: e.projects!.client_id,
-      task_id: e.task_id,
-      task_title: e.tasks?.title ?? null,
-    }));
+  const trackedEntries: TrackedEntry[] = rows.map((e) => ({
+    id: e.id,
+    started_at: e.started_at,
+    ended_at: e.ended_at,
+    duration_minutes: e.duration_minutes,
+    billable: e.billable,
+    rate_snapshot: e.rate_snapshot,
+    description: e.description,
+    user_id: e.user_id,
+    user_name: e.profiles?.name ?? 'Someone',
+    project_id: e.project_id,
+    project_name: e.projects?.name ?? 'Personal',
+    project_color: e.projects?.color ?? null,
+    client_id: e.projects?.client_id ?? null,
+    task_id: e.task_id,
+    task_title: e.tasks?.title ?? e.my_tasks?.title ?? null,
+    my_task_id: e.my_task_id,
+    my_task_title: e.my_tasks?.title ?? null,
+  }));
 
   return (
     <TrackedTimeReport
