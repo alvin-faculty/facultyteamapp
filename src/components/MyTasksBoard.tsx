@@ -409,7 +409,7 @@ function MyTaskCard({
             : undefined
         }
         className={cn(
-          'touch-none space-y-1 rounded-md border bg-card p-2.5',
+          'touch-none space-y-1 rounded-md border bg-background p-2.5',
           isDragging && 'z-10 opacity-50',
         )}
         {...listeners}
@@ -457,7 +457,7 @@ function MyTaskCard({
         {isLinked && item.tasks?.project_id && (
           <div className='flex items-center justify-between gap-2'>
             <Link
-              href={`/projects/${item.tasks.project_id}`}
+              href={`/projects/${item.tasks.project_id}?task=${item.project_task_id}`}
               onPointerDown={(e) => e.stopPropagation()}
               className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground'
             >
