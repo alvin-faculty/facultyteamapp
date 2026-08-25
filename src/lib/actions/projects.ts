@@ -169,3 +169,21 @@ export async function deleteProposalScope(projectId: string, url: string) {
 
   revalidatePath(`/projects/${projectId}`);
 }
+
+export async function updateProjectDates(
+  projectId: string,
+  startDate: string | null,
+  endDate: string | null,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from('projects')
+    .update({ start_date: startDate, end_date: endDate })
+    .eq('id', projectId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/');
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/timeline');
+}

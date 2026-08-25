@@ -1,18 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 import { projectDotColorClass } from '@/lib/project-color';
 import { cn } from '@/lib/utils';
 import type { Client, Project, Task } from '@/lib/supabase/types';
+import { toast } from 'sonner';
+import { updateProjectDates } from '@/lib/actions/projects';
+import { updateTaskDates } from '@/lib/actions/tasks';
 
 type ProjectWithClient = Project & { clients: Client | null };
 
 const DAY_WIDTH = 28; // px per day column
 const ROW_HEIGHT = 36; // px per row
 const MIN_RANGE_DAYS = 30;
-const MAX_RANGE_DAYS = 180;
+// const MAX_RANGE_DAYS = 180;
 
 function parseDate(d: string | null): Date | null {
   if (!d) return null;
@@ -74,21 +77,16 @@ function computeRange(projects: ProjectWithClient[], tasks: Task[]): DateRange {
       ? new Date(Math.max(...dates.map((d) => d.getTime())))
       : today;
 
-  // Always include today in the visible range
   if (today < start) start = today;
   if (today > end) end = today;
 
-  // Pad a few days on each side for breathing room
   start = new Date(start.getTime() - 3 * 86400000);
   end = new Date(end.getTime() + 3 * 86400000);
 
-  // Clamp overall span
   const span = daysBetween(start, end);
   if (span < MIN_RANGE_DAYS) {
     const extra = MIN_RANGE_DAYS - span;
     end = new Date(end.getTime() + extra * 86400000);
-  } else if (span > MAX_RANGE_DAYS) {
-    end = new Date(start.getTime() + MAX_RANGE_DAYS * 86400000);
   }
 
   const days: Date[] = [];
@@ -121,6 +119,12 @@ function BarBackground({ days }: { days: Date[] }) {
   );
 }
 
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+type DragMode = 'move' | 'resize-start' | 'resize-end';
+
 function GanttBar({
   startDate,
   endDate,
@@ -128,6 +132,7 @@ function GanttBar({
   colorClass,
   label,
   href,
+  onDatesChange,
 }: {
   startDate: Date | null;
   endDate: Date | null;
@@ -135,35 +140,123 @@ function GanttBar({
   colorClass: string;
   label: string;
   href?: string;
+  onDatesChange?: (start: Date, end: Date) => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [draftDates, setDraftDates] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const movedRef = useRef(false);
+  const latestDatesRef = useRef<{ start: Date; end: Date } | null>(null);
+
   if (!startDate && !endDate) {
     return (
       <span className='pl-2 text-xs text-muted-foreground'>No dates set</span>
     );
   }
 
-  const effectiveStart = startDate ?? endDate!;
-  const effectiveEnd = endDate ?? startDate!;
+  const baseStart = startDate ?? endDate!;
+  const baseEnd = endDate ?? startDate!;
+  const effectiveStart = draftDates?.start ?? baseStart;
+  const effectiveEnd = draftDates?.end ?? baseEnd;
   const offsetDays = daysBetween(rangeStart, effectiveStart);
   const spanDays = Math.max(1, daysBetween(effectiveStart, effectiveEnd) + 1);
+
+  function beginDrag(mode: DragMode, e: React.PointerEvent) {
+    if (!onDatesChange) return;
+    const handleDatesChange = onDatesChange;
+
+    e.preventDefault();
+    e.stopPropagation();
+    movedRef.current = false;
+    latestDatesRef.current = null;
+    setIsDragging(true);
+
+    const originStart = baseStart;
+    const originEnd = baseEnd;
+    const startX = e.clientX;
+
+    function handleMove(ev: PointerEvent) {
+      const deltaDays = Math.round((ev.clientX - startX) / DAY_WIDTH);
+      if (deltaDays !== 0) movedRef.current = true;
+
+      let newStart = originStart;
+      let newEnd = originEnd;
+      if (mode === 'move') {
+        newStart = new Date(originStart.getTime() + deltaDays * 86400000);
+        newEnd = new Date(originEnd.getTime() + deltaDays * 86400000);
+      } else if (mode === 'resize-start') {
+        newStart = new Date(originStart.getTime() + deltaDays * 86400000);
+        if (newStart > originEnd) newStart = originEnd;
+      } else {
+        newEnd = new Date(originEnd.getTime() + deltaDays * 86400000);
+        if (newEnd < originStart) newEnd = originStart;
+      }
+      latestDatesRef.current = { start: newStart, end: newEnd };
+      setDraftDates({ start: newStart, end: newEnd });
+    }
+
+    function handleUp() {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      setIsDragging(false);
+      setDraftDates(null);
+      if (movedRef.current && latestDatesRef.current) {
+        handleDatesChange(
+          latestDatesRef.current.start,
+          latestDatesRef.current.end,
+        );
+      }
+    }
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  }
+
+  function handleClickCapture(e: React.MouseEvent) {
+    if (movedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
 
   const bar = (
     <div
       className={cn(
-        'absolute top-1/2 h-5 -translate-y-1/2 rounded-md opacity-90 transition-opacity hover:opacity-100',
+        'group absolute top-1/2 h-5 -translate-y-1/2 rounded-md opacity-90 transition-opacity hover:opacity-100',
         colorClass,
+        isDragging && 'opacity-100 ring-2 ring-foreground/30',
+        onDatesChange && 'cursor-grab active:cursor-grabbing',
       )}
       style={{ left: offsetDays * DAY_WIDTH, width: spanDays * DAY_WIDTH - 4 }}
-      title={label}
+      title={`${label} · ${toISODate(effectiveStart)} – ${toISODate(effectiveEnd)}`}
+      onPointerDown={(e) => beginDrag('move', e)}
     >
-      <span className='block truncate px-2 text-[10px] leading-5 text-white'>
+      {onDatesChange && (
+        <div
+          className='absolute inset-y-0 left-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100'
+          onPointerDown={(e) => beginDrag('resize-start', e)}
+        />
+      )}
+      <span className='block truncate px-2 text-[10px] leading-5 text-white select-none'>
         {label}
       </span>
+      {onDatesChange && (
+        <div
+          className='absolute inset-y-0 right-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100'
+          onPointerDown={(e) => beginDrag('resize-end', e)}
+        />
+      )}
     </div>
   );
 
   return href ? (
-    <Link href={href} className='absolute inset-0'>
+    <Link
+      href={href}
+      className='absolute inset-0'
+      onClickCapture={handleClickCapture}
+    >
       {bar}
     </Link>
   ) : (
@@ -228,6 +321,51 @@ export function TimelineView({
 }) {
   const range = useMemo(() => computeRange(projects, tasks), [projects, tasks]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [, startTransition] = useTransition();
+  const chartScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chartScrollRef.current) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const offsetDays = daysBetween(range.start, today);
+    const scrollTarget = Math.max(0, offsetDays * DAY_WIDTH - 200); // ~200px of past context
+    chartScrollRef.current.scrollLeft = scrollTarget;
+  }, [range]);
+
+  function handleProjectDatesChange(projectId: string, start: Date, end: Date) {
+    startTransition(async () => {
+      try {
+        await updateProjectDates(projectId, toISODate(start), toISODate(end));
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to update project dates',
+        );
+      }
+    });
+  }
+
+  function handleTaskDatesChange(
+    taskId: string,
+    projectId: string,
+    start: Date,
+    end: Date,
+  ) {
+    startTransition(async () => {
+      try {
+        await updateTaskDates(
+          taskId,
+          projectId,
+          toISODate(start),
+          toISODate(end),
+        );
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to update task dates',
+        );
+      }
+    });
+  }
 
   function toggle(projectId: string) {
     setExpanded((prev) => {
@@ -299,7 +437,7 @@ export function TimelineView({
       </div>
 
       {/* Chart */}
-      <div className='flex-1 overflow-x-auto'>
+      <div ref={chartScrollRef} className='flex-1 overflow-x-auto'>
         <div style={{ width: chartWidth }}>
           <MonthHeader days={range.days} />
           <DayHeader days={range.days} />
@@ -321,6 +459,9 @@ export function TimelineView({
                       ).replace('bg-', 'bg-')}
                       label={project.name}
                       href={`/projects/${project.id}`}
+                      onDatesChange={(start, end) =>
+                        handleProjectDatesChange(project.id, start, end)
+                      }
                     />
                   </div>
                   {isExpanded &&
@@ -338,6 +479,14 @@ export function TimelineView({
                           colorClass='bg-muted-foreground/60'
                           label={task.title}
                           href={`/projects/${project.id}?task=${task.id}`}
+                          onDatesChange={(start, end) =>
+                            handleTaskDatesChange(
+                              task.id,
+                              project.id,
+                              start,
+                              end,
+                            )
+                          }
                         />
                       </div>
                     ))}

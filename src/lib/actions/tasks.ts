@@ -155,3 +155,21 @@ export async function deleteTask(taskId: string, projectId: string) {
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
+
+export async function updateTaskDates(
+  taskId: string,
+  projectId: string,
+  startDate: string | null,
+  dueDate: string | null,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ start_date: startDate, due_date: dueDate })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/timeline');
+}
