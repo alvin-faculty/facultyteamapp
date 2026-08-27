@@ -11,11 +11,26 @@ import { updateProjectDates } from '@/lib/actions/projects';
 import { updateTaskDates } from '@/lib/actions/tasks';
 
 type ProjectWithClient = Project & { clients: Client | null };
+type ZoomLevel = 'day' | 'week' | 'month';
 
-const DAY_WIDTH = 28; // px per day column
 const ROW_HEIGHT = 36; // px per row
 const MIN_RANGE_DAYS = 30;
-// const MAX_RANGE_DAYS = 180;
+
+const ZOOM_DAY_WIDTH: Record<ZoomLevel, number> = {
+  day: 28,
+  week: 10,
+  month: 4,
+};
+const ZOOM_UNIT_DAYS: Record<ZoomLevel, number> = {
+  day: 1,
+  week: 7,
+  month: 30,
+};
+const ZOOM_LABELS: Record<ZoomLevel, string> = {
+  day: 'Days',
+  week: 'Weeks',
+  month: 'Months',
+};
 
 function parseDate(d: string | null): Date | null {
   if (!d) return null;
@@ -29,10 +44,6 @@ function daysBetween(a: Date, b: Date): number {
 
 function formatDay(d: Date): string {
   return d.toLocaleDateString('en-US', { day: 'numeric' });
-}
-
-function isSameMonth(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
 function isToday(d: Date): boolean {
@@ -101,7 +112,7 @@ function computeRange(projects: ProjectWithClient[], tasks: Task[]): DateRange {
   return { start, end, days };
 }
 
-function BarBackground({ days }: { days: Date[] }) {
+function BarBackground({ days, dayWidth }: { days: Date[]; dayWidth: number }) {
   return (
     <div className='absolute inset-0 flex'>
       {days.map((d, i) => (
@@ -112,7 +123,7 @@ function BarBackground({ days }: { days: Date[] }) {
             (d.getDay() === 0 || d.getDay() === 6) && 'bg-muted/30',
             isToday(d) && 'bg-primary/5',
           )}
-          style={{ width: DAY_WIDTH }}
+          style={{ width: dayWidth }}
         />
       ))}
     </div>
@@ -133,6 +144,8 @@ function GanttBar({
   label,
   href,
   onDatesChange,
+  dayWidth,
+  unitDays,
 }: {
   startDate: Date | null;
   endDate: Date | null;
@@ -141,6 +154,8 @@ function GanttBar({
   label: string;
   href?: string;
   onDatesChange?: (start: Date, end: Date) => void;
+  dayWidth: number;
+  unitDays: number;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [draftDates, setDraftDates] = useState<{
@@ -176,9 +191,11 @@ function GanttBar({
     const originStart = baseStart;
     const originEnd = baseEnd;
     const startX = e.clientX;
+    const snapWidth = dayWidth * unitDays;
 
     function handleMove(ev: PointerEvent) {
-      const deltaDays = Math.round((ev.clientX - startX) / DAY_WIDTH);
+      const deltaUnits = Math.round((ev.clientX - startX) / snapWidth);
+      const deltaDays = deltaUnits * unitDays;
       if (deltaDays !== 0) movedRef.current = true;
 
       let newStart = originStart;
@@ -229,7 +246,10 @@ function GanttBar({
         isDragging && 'opacity-100 ring-2 ring-foreground/30',
         onDatesChange && 'cursor-grab active:cursor-grabbing',
       )}
-      style={{ left: offsetDays * DAY_WIDTH, width: spanDays * DAY_WIDTH - 4 }}
+      style={{
+        left: offsetDays * dayWidth,
+        width: spanDays * dayWidth - Math.min(4, dayWidth * 0.3),
+      }}
       title={`${label} · ${toISODate(effectiveStart)} – ${toISODate(effectiveEnd)}`}
       onPointerDown={(e) => beginDrag('move', e)}
     >
@@ -264,7 +284,7 @@ function GanttBar({
   );
 }
 
-function MonthHeader({ days }: { days: Date[] }) {
+function MonthHeader({ days, dayWidth }: { days: Date[]; dayWidth: number }) {
   const groups: { label: string; count: number }[] = [];
   for (const d of days) {
     const label = d.toLocaleDateString('en-US', {
@@ -284,7 +304,7 @@ function MonthHeader({ days }: { days: Date[] }) {
         <div
           key={i}
           className='shrink-0 border-r px-2 py-1.5 text-xs font-semibold text-muted-foreground'
-          style={{ width: g.count * DAY_WIDTH }}
+          style={{ width: g.count * dayWidth }}
         >
           {g.label}
         </div>
@@ -293,7 +313,37 @@ function MonthHeader({ days }: { days: Date[] }) {
   );
 }
 
-function DayHeader({ days }: { days: Date[] }) {
+function WeekHeader({ days, dayWidth }: { days: Date[]; dayWidth: number }) {
+  const groups: { label: string; count: number }[] = [];
+  days.forEach((d, i) => {
+    if (i % 7 === 0) {
+      groups.push({
+        label: d.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        count: 1,
+      });
+    } else {
+      groups[groups.length - 1].count += 1;
+    }
+  });
+  return (
+    <div className='flex border-b bg-card'>
+      {groups.map((g, i) => (
+        <div
+          key={i}
+          className='shrink-0 border-r border-border/40 py-1 text-center text-[10px] text-muted-foreground'
+          style={{ width: g.count * dayWidth }}
+        >
+          {g.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DayHeader({ days, dayWidth }: { days: Date[]; dayWidth: number }) {
   return (
     <div className='flex border-b bg-card'>
       {days.map((d, i) => (
@@ -303,7 +353,7 @@ function DayHeader({ days }: { days: Date[] }) {
             'shrink-0 border-r border-border/40 py-1 text-center text-[10px] text-muted-foreground',
             isToday(d) && 'bg-primary/5 font-semibold text-foreground',
           )}
-          style={{ width: DAY_WIDTH }}
+          style={{ width: dayWidth }}
         >
           {formatDay(d)}
         </div>
@@ -321,17 +371,40 @@ export function TimelineView({
 }) {
   const range = useMemo(() => computeRange(projects, tasks), [projects, tasks]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [, startTransition] = useTransition();
+  const [zoom, setZoom] = useState<ZoomLevel>(() => {
+    if (typeof window === 'undefined') return 'day';
+    const stored = window.localStorage.getItem('timeline-zoom');
+    return stored === 'day' || stored === 'week' || stored === 'month'
+      ? stored
+      : 'day';
+  });
   const chartScrollRef = useRef<HTMLDivElement>(null);
+  const [, startTransition] = useTransition();
+
+  const dayWidth = ZOOM_DAY_WIDTH[zoom];
+  const unitDays = ZOOM_UNIT_DAYS[zoom];
+
+  useEffect(() => {
+    localStorage.setItem('timeline-zoom', zoom);
+  }, [zoom]);
 
   useEffect(() => {
     if (!chartScrollRef.current) return;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const offsetDays = daysBetween(range.start, today);
-    const scrollTarget = Math.max(0, offsetDays * DAY_WIDTH - 200); // ~200px of past context
+    const scrollTarget = Math.max(0, offsetDays * dayWidth - 200);
     chartScrollRef.current.scrollLeft = scrollTarget;
-  }, [range]);
+  }, [range, dayWidth]);
+
+  function toggle(projectId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  }
 
   function handleProjectDatesChange(projectId: string, start: Date, end: Date) {
     startTransition(async () => {
@@ -367,19 +440,10 @@ export function TimelineView({
     });
   }
 
-  function toggle(projectId: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
-      return next;
-    });
-  }
-
   const tasksByProject = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const t of tasks) {
-      if (t.parent_task_id) continue; // skip subtasks in the timeline for now
+      if (t.parent_task_id) continue;
       (
         map.get(t.project_id) ?? map.set(t.project_id, []).get(t.project_id)!
       ).push(t);
@@ -387,112 +451,143 @@ export function TimelineView({
     return map;
   }, [tasks]);
 
-  const chartWidth = range.days.length * DAY_WIDTH;
+  const chartWidth = range.days.length * dayWidth;
 
   return (
-    <div className='flex overflow-hidden rounded-xl border'>
-      {/* Sidebar */}
-      <div className='w-64 shrink-0 divide-y overflow-y-auto border-r bg-card'>
-        <div className='h-[52px] border-b' />{' '}
-        {/* spacer matching the two header rows */}
-        {projects.map((project) => {
-          const projectTasks = tasksByProject.get(project.id) ?? [];
-          const isExpanded = expanded.has(project.id);
-          return (
-            <div key={project.id}>
-              <button
-                type='button'
-                onClick={() => toggle(project.id)}
-                className='flex w-full items-center gap-1.5 px-2 text-left text-sm hover:bg-muted/40'
-                style={{ height: ROW_HEIGHT }}
-              >
-                {projectTasks.length > 0 ? (
-                  isExpanded ? (
-                    <ChevronDownIcon className='size-3.5 shrink-0 text-muted-foreground' />
-                  ) : (
-                    <ChevronRightIcon className='size-3.5 shrink-0 text-muted-foreground' />
-                  )
-                ) : (
-                  <span className='size-3.5 shrink-0' />
-                )}
-                <span className='truncate font-medium'>
-                  {project.clients
-                    ? `${project.clients.name} — ${project.name}`
-                    : project.name}
-                </span>
-              </button>
-              {isExpanded &&
-                projectTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className='flex items-center px-2 pl-8 text-sm text-muted-foreground'
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    <span className='truncate'>{task.title}</span>
-                  </div>
-                ))}
-            </div>
-          );
-        })}
+    <div className='space-y-3'>
+      <div className='flex items-center justify-start pl-5 mb-12'>
+        <div className='inline-flex rounded-md border p-0.5'>
+          {(['day', 'week', 'month'] as ZoomLevel[]).map((z) => (
+            <button
+              key={z}
+              type='button'
+              onClick={() => setZoom(z)}
+              className={cn(
+                'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                zoom === z
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {ZOOM_LABELS[z]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Chart */}
-      <div ref={chartScrollRef} className='flex-1 overflow-x-auto'>
-        <div style={{ width: chartWidth }}>
-          <MonthHeader days={range.days} />
-          <DayHeader days={range.days} />
-          <div className='relative divide-y'>
-            {projects.map((project) => {
-              const projectTasks = tasksByProject.get(project.id) ?? [];
-              const isExpanded = expanded.has(project.id);
-              return (
-                <div key={project.id}>
-                  <div className='relative' style={{ height: ROW_HEIGHT }}>
-                    <BarBackground days={range.days} />
-                    <GanttBar
-                      startDate={parseDate(project.start_date)}
-                      endDate={parseDate(project.end_date)}
-                      rangeStart={range.start}
-                      colorClass={projectDotColorClass(
-                        project.color,
-                        null,
-                      ).replace('bg-', 'bg-')}
-                      label={project.name}
-                      href={`/projects/${project.id}`}
-                      onDatesChange={(start, end) =>
-                        handleProjectDatesChange(project.id, start, end)
-                      }
-                    />
+      <div className='flex overflow-hidden border'>
+        {/* Sidebar */}
+        <div className='w-64 shrink-0 divide-y overflow-y-auto border-r bg-card'>
+          <div className='h-[73px] border-b' />
+          {projects.map((project) => {
+            const projectTasks = tasksByProject.get(project.id) ?? [];
+            const isExpanded = expanded.has(project.id);
+            return (
+              <div key={project.id}>
+                <button
+                  type='button'
+                  onClick={() => toggle(project.id)}
+                  className='flex w-full items-center gap-1.5 px-2 text-left text-sm hover:bg-muted/40'
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {projectTasks.length > 0 ? (
+                    isExpanded ? (
+                      <ChevronDownIcon className='size-3.5 shrink-0 text-muted-foreground' />
+                    ) : (
+                      <ChevronRightIcon className='size-3.5 shrink-0 text-muted-foreground' />
+                    )
+                  ) : (
+                    <span className='size-3.5 shrink-0' />
+                  )}
+                  <span className='truncate font-medium'>
+                    {project.clients
+                      ? `${project.clients.name} — ${project.name}`
+                      : project.name}
+                  </span>
+                </button>
+                {isExpanded &&
+                  projectTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className='flex items-center px-2 pl-8 text-sm text-muted-foreground'
+                      style={{ height: ROW_HEIGHT }}
+                    >
+                      <span className='truncate'>{task.title}</span>
+                    </div>
+                  ))}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Chart */}
+        <div ref={chartScrollRef} className='flex-1 overflow-x-auto'>
+          <div style={{ width: chartWidth }}>
+            <MonthHeader days={range.days} dayWidth={dayWidth} />
+            {zoom === 'day' && (
+              <DayHeader days={range.days} dayWidth={dayWidth} />
+            )}
+            {zoom === 'week' && (
+              <WeekHeader days={range.days} dayWidth={dayWidth} />
+            )}
+            {zoom === 'month' && <div className='h-[25px] border-b bg-card' />}
+            <div className='relative divide-y'>
+              {projects.map((project) => {
+                const projectTasks = tasksByProject.get(project.id) ?? [];
+                const isExpanded = expanded.has(project.id);
+                return (
+                  <div key={project.id}>
+                    <div className='relative' style={{ height: ROW_HEIGHT }}>
+                      <BarBackground days={range.days} dayWidth={dayWidth} />
+                      <GanttBar
+                        startDate={parseDate(project.start_date)}
+                        endDate={parseDate(project.end_date)}
+                        rangeStart={range.start}
+                        colorClass={projectDotColorClass(project.color, null)}
+                        label={project.name}
+                        href={`/projects/${project.id}`}
+                        onDatesChange={(start, end) =>
+                          handleProjectDatesChange(project.id, start, end)
+                        }
+                        dayWidth={dayWidth}
+                        unitDays={unitDays}
+                      />
+                    </div>
+                    {isExpanded &&
+                      projectTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className='relative'
+                          style={{ height: ROW_HEIGHT }}
+                        >
+                          <BarBackground
+                            days={range.days}
+                            dayWidth={dayWidth}
+                          />
+                          <GanttBar
+                            startDate={parseDate(task.start_date)}
+                            endDate={parseDate(task.due_date)}
+                            rangeStart={range.start}
+                            colorClass='bg-muted-foreground/60'
+                            label={task.title}
+                            href={`/projects/${project.id}?task=${task.id}`}
+                            onDatesChange={(start, end) =>
+                              handleTaskDatesChange(
+                                task.id,
+                                project.id,
+                                start,
+                                end,
+                              )
+                            }
+                            dayWidth={dayWidth}
+                            unitDays={unitDays}
+                          />
+                        </div>
+                      ))}
                   </div>
-                  {isExpanded &&
-                    projectTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className='relative'
-                        style={{ height: ROW_HEIGHT }}
-                      >
-                        <BarBackground days={range.days} />
-                        <GanttBar
-                          startDate={parseDate(task.start_date)}
-                          endDate={parseDate(task.due_date)}
-                          rangeStart={range.start}
-                          colorClass='bg-muted-foreground/60'
-                          label={task.title}
-                          href={`/projects/${project.id}?task=${task.id}`}
-                          onDatesChange={(start, end) =>
-                            handleTaskDatesChange(
-                              task.id,
-                              project.id,
-                              start,
-                              end,
-                            )
-                          }
-                        />
-                      </div>
-                    ))}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
