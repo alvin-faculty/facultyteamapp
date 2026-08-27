@@ -136,7 +136,7 @@ export type MyTaskWithDetails = MyTask & {
   tasks?: {
     title: string;
     project_id: string;
-    projects?: { name: string } | null;
+    projects?: { name: string; clients?: { name: string } | null } | null;
   } | null;
 };
 
