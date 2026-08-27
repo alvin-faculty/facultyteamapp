@@ -16,6 +16,7 @@ import {
   updateProjectDropboxUrl,
   updateProjectNumber,
   uploadProposalScope,
+  deleteProposalScope,
 } from '@/lib/actions/projects';
 import type { RunningTimeEntry } from '@/lib/actions/time-entries';
 import {
@@ -23,6 +24,7 @@ import {
   ExternalLinkIcon,
   FileImageIcon,
   PencilIcon,
+  TrashIcon,
 } from 'lucide-react';
 import type {
   Client,
@@ -67,6 +69,23 @@ function ProjectInfoBox({
     e.target.value = '';
   }
 
+  function handleRemove() {
+    if (!project.proposal_scope_url) return;
+    if (!confirm('Remove the proposal scope? This cannot be undone.')) return;
+    startTransition(async () => {
+      try {
+        await deleteProposalScope(project.id, project.proposal_scope_url!);
+        toast.success('Proposal scope removed');
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : 'Failed to remove proposal scope',
+        );
+      }
+    });
+  }
+
   return (
     <Card>
       <CardContent className='grid grid-cols-2 gap-4 py-4 md:grid-cols-3'>
@@ -109,6 +128,17 @@ function ProjectInfoBox({
             >
               <PencilIcon className='size-3' />
             </Button>
+            {project.proposal_scope_url && (
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon-xs'
+                disabled={isPending}
+                onClick={handleRemove}
+              >
+                <TrashIcon className='size-3' />
+              </Button>
+            )}
             <input
               ref={fileInputRef}
               type='file'

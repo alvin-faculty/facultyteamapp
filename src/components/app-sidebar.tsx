@@ -22,6 +22,7 @@ import { projectDotColorClass } from '@/lib/project-color';
 import { cn } from '@/lib/utils';
 import {
   BarChart3Icon,
+  CalendarDaysIcon,
   FolderKanbanIcon,
   ListChecksIcon,
   SettingsIcon,
@@ -29,6 +30,7 @@ import {
 
 const NAV_ITEMS = [
   { href: '/', label: 'Project Overview', icon: FolderKanbanIcon },
+  { href: '/timeline', label: 'Timeline', icon: CalendarDaysIcon },
   { href: '/my-tasks', label: 'My Tasks', icon: ListChecksIcon },
   { href: '/my-time', label: 'My Time', icon: BarChart3Icon },
   { href: '/contacts', label: 'Contacts', icon: ListChecksIcon },

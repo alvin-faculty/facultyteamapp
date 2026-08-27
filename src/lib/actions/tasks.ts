@@ -1,20 +1,24 @@
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { revalidatePath } from 'next/cache';
+import { createClient as createSupabaseServerClient } from '@/lib/supabase/server';
 
-export async function createTask(projectId: string, sectionId: string, formData: FormData) {
+export async function createTask(
+  projectId: string,
+  sectionId: string,
+  formData: FormData,
+) {
   const supabase = await createSupabaseServerClient();
 
-  const title = String(formData.get("title"));
-  const due_date = (formData.get("due_date") as string) || null;
+  const title = String(formData.get('title'));
+  const due_date = (formData.get('due_date') as string) || null;
 
   const { count } = await supabase
-    .from("tasks")
-    .select("id", { count: "exact", head: true })
-    .eq("section_id", sectionId);
+    .from('tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('section_id', sectionId);
 
-  const { error } = await supabase.from("tasks").insert({
+  const { error } = await supabase.from('tasks').insert({
     project_id: projectId,
     section_id: sectionId,
     title,
@@ -35,27 +39,38 @@ export async function moveTask(
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("tasks")
+    .from('tasks')
     .update({ section_id: sectionId, position })
-    .eq("id", taskId);
+    .eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function toggleTaskCompleted(taskId: string, projectId: string, completed: boolean) {
+export async function toggleTaskCompleted(
+  taskId: string,
+  projectId: string,
+  completed: boolean,
+) {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("tasks").update({ completed }).eq("id", taskId);
+  const { error } = await supabase
+    .from('tasks')
+    .update({ completed })
+    .eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function createSubtask(projectId: string, parentTaskId: string, title: string) {
+export async function createSubtask(
+  projectId: string,
+  parentTaskId: string,
+  title: string,
+) {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("tasks").insert({
+  const { error } = await supabase.from('tasks').insert({
     project_id: projectId,
     parent_task_id: parentTaskId,
     section_id: null,
@@ -67,44 +82,94 @@ export async function createSubtask(projectId: string, parentTaskId: string, tit
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function updateTaskDescription(taskId: string, projectId: string, description: string) {
+export async function updateTaskDescription(
+  taskId: string,
+  projectId: string,
+  description: string,
+) {
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("tasks")
+    .from('tasks')
     .update({ description: description || null })
-    .eq("id", taskId);
+    .eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function updateTaskDueDate(taskId: string, projectId: string, dueDate: string) {
+export async function updateTaskDueDate(
+  taskId: string,
+  projectId: string,
+  dueDate: string,
+) {
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
-    .from("tasks")
+    .from('tasks')
     .update({ due_date: dueDate || null })
-    .eq("id", taskId);
+    .eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function updateTaskBillable(taskId: string, projectId: string, billable: boolean) {
+export async function updateTaskBillable(
+  taskId: string,
+  projectId: string,
+  billable: boolean,
+) {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("tasks").update({ billable }).eq("id", taskId);
+  const { error } = await supabase
+    .from('tasks')
+    .update({ billable })
+    .eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateTaskStartDate(
+  taskId: string,
+  projectId: string,
+  startDate: string,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ start_date: startDate || null })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/timeline');
 }
 
 export async function deleteTask(taskId: string, projectId: string) {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  const { error } = await supabase.from('tasks').delete().eq('id', taskId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateTaskDates(
+  taskId: string,
+  projectId: string,
+  startDate: string | null,
+  dueDate: string | null,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ start_date: startDate, due_date: dueDate })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/timeline');
 }
