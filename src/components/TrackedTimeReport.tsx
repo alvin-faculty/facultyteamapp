@@ -26,7 +26,11 @@ import {
   PencilIcon,
   TrashIcon,
 } from 'lucide-react';
-import { updateTimeEntry, deleteTimeEntry } from '@/lib/actions/time-entries';
+import {
+  updateTimeEntry,
+  updateTimeEntryTimes,
+  deleteTimeEntry,
+} from '@/lib/actions/time-entries';
 import { profileColorClass } from '@/lib/profile-color';
 import { projectDotColorClass } from '@/lib/project-color';
 import {
@@ -221,6 +225,13 @@ interface EditableEntry {
   billable: boolean;
 }
 
+type EditMode = 'duration' | 'times';
+
+function formatTimeInput(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function EditEntryDialog({
   entry,
   open,
@@ -230,39 +241,81 @@ function EditEntryDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [mode, setMode] = useState<EditMode>('duration');
   const [date, setDate] = useState(() => dayKey(entry.started_at));
   const [hours, setHours] = useState(() =>
     ((entry.duration_minutes ?? 0) / 60).toString(),
   );
+  const [startTime, setStartTime] = useState(() =>
+    formatTimeInput(entry.started_at),
+  );
+  const [endTime, setEndTime] = useState(() => {
+    const start = new Date(entry.started_at);
+    const end = new Date(
+      start.getTime() + (entry.duration_minutes ?? 0) * 60000,
+    );
+    return formatTimeInput(end.toISOString());
+  });
   const [description, setDescription] = useState(entry.description ?? '');
   const [billable, setBillable] = useState(entry.billable);
   const [isPending, startTransition] = useTransition();
 
   function submit() {
-    const hoursNum = Number(hours);
-    if (!date || !Number.isFinite(hoursNum) || hoursNum <= 0) {
-      toast.error('Please enter a valid date and duration');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.set('date', date);
-    formData.set('hours', hours);
-    formData.set('description', description);
-    if (billable) formData.set('billable', 'on');
-
-    startTransition(async () => {
-      try {
-        await updateTimeEntry(entry.id, formData);
-        toast.success('Entry updated');
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to update entry',
-        );
+    if (mode === 'duration') {
+      const hoursNum = Number(hours);
+      if (!date || !Number.isFinite(hoursNum) || hoursNum <= 0) {
+        toast.error('Please enter a valid date and duration');
+        return;
       }
-    });
+
+      const formData = new FormData();
+      formData.set('date', date);
+      formData.set('hours', hours);
+      formData.set('description', description);
+      if (billable) formData.set('billable', 'on');
+
+      startTransition(async () => {
+        try {
+          await updateTimeEntry(entry.id, formData);
+          toast.success('Entry updated');
+          onOpenChange(false);
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : 'Failed to update entry',
+          );
+        }
+      });
+    } else {
+      if (!date || !startTime || !endTime) {
+        toast.error('Please enter a date, start time, and end time');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.set('date', date);
+      formData.set('start_time', startTime);
+      formData.set('end_time', endTime);
+      formData.set('description', description);
+      if (billable) formData.set('billable', 'on');
+
+      startTransition(async () => {
+        try {
+          await updateTimeEntryTimes(entry.id, formData);
+          toast.success('Entry updated');
+          onOpenChange(false);
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : 'Failed to update entry',
+          );
+        }
+      });
+    }
   }
+
+  const isValid =
+    mode === 'duration'
+      ? Boolean(date) && Boolean(hours) && Number(hours) > 0
+      : Boolean(date) && Boolean(startTime) && Boolean(endTime);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -271,28 +324,88 @@ function EditEntryDialog({
           <DialogTitle>Edit time entry</DialogTitle>
         </DialogHeader>
         <div className='space-y-4'>
-          <div className='grid grid-cols-2 gap-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='edit-date'>Date</Label>
-              <Input
-                id='edit-date'
-                type='date'
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='edit-hours'>Hours</Label>
-              <Input
-                id='edit-hours'
-                type='number'
-                min='0'
-                step='0.25'
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-              />
-            </div>
+          <div className='inline-flex rounded-md border p-0.5'>
+            <button
+              type='button'
+              onClick={() => setMode('duration')}
+              className={cn(
+                'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                mode === 'duration'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Duration
+            </button>
+            <button
+              type='button'
+              onClick={() => setMode('times')}
+              className={cn(
+                'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                mode === 'times'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Start &amp; end time
+            </button>
           </div>
+
+          {mode === 'duration' ? (
+            <div className='grid grid-cols-2 gap-4'>
+              <div className='space-y-2'>
+                <Label htmlFor='edit-date'>Date</Label>
+                <Input
+                  id='edit-date'
+                  type='date'
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='edit-hours'>Hours</Label>
+                <Input
+                  id='edit-hours'
+                  type='number'
+                  min='0'
+                  step='0.25'
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className='grid grid-cols-3 gap-4'>
+              <div className='space-y-2'>
+                <Label htmlFor='edit-date-times'>Date</Label>
+                <Input
+                  id='edit-date-times'
+                  type='date'
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='edit-start-time'>Start time</Label>
+                <Input
+                  id='edit-start-time'
+                  type='time'
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='edit-end-time'>End time</Label>
+                <Input
+                  id='edit-end-time'
+                  type='time'
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
           <div className='space-y-2'>
             <Label htmlFor='edit-description'>Description</Label>
             <Input
@@ -314,7 +427,7 @@ function EditEntryDialog({
           </div>
           <Button
             className='w-full'
-            disabled={isPending || !date || !hours || Number(hours) <= 0}
+            disabled={isPending || !isValid}
             onClick={submit}
           >
             Save changes
