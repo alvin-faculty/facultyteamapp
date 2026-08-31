@@ -244,6 +244,49 @@ export async function updateTimeEntry(entryId: string, formData: FormData) {
   revalidatePath('/my-time');
 }
 
+export async function updateTimeEntryTimes(
+  entryId: string,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+
+  const date = String(formData.get('date'));
+  const startTime = String(formData.get('start_time'));
+  const endTime = String(formData.get('end_time'));
+  const description = (formData.get('description') as string) || null;
+  const billable = formData.get('billable') === 'on';
+
+  if (!date || !startTime || !endTime) {
+    throw new Error('Please enter a date, start time, and end time');
+  }
+
+  const started_at = new Date(`${date}T${startTime}:00`);
+  const ended_at = new Date(`${date}T${endTime}:00`);
+
+  if (ended_at <= started_at) {
+    throw new Error('End time must be after start time');
+  }
+
+  const duration_minutes = Math.round(
+    (ended_at.getTime() - started_at.getTime()) / 60000,
+  );
+
+  const { error } = await supabase
+    .from('time_entries')
+    .update({
+      started_at: started_at.toISOString(),
+      ended_at: ended_at.toISOString(),
+      duration_minutes,
+      description,
+      billable,
+    })
+    .eq('id', entryId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/tracked-time');
+  revalidatePath('/my-time');
+}
+
 export async function updateTimeEntryDuration(entryId: string, hours: number) {
   const supabase = await createClient();
 
