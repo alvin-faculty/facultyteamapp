@@ -77,14 +77,21 @@ const RANGE_LABELS: Record<RangeKey, string> = {
 
 function rangeStart(range: RangeKey): Date | null {
   const now = new Date();
-  if (range === 'today')
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const utcToday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  if (range === 'today') return utcToday;
   if (range === 'week') {
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(now.getFullYear(), now.getMonth(), diff);
+    const day = utcToday.getUTCDay();
+    const diff = utcToday.getUTCDate() - day + (day === 0 ? -6 : 1);
+    return new Date(
+      Date.UTC(utcToday.getUTCFullYear(), utcToday.getUTCMonth(), diff),
+    );
   }
-  if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (range === 'month')
+    return new Date(
+      Date.UTC(utcToday.getUTCFullYear(), utcToday.getUTCMonth(), 1),
+    );
   return null;
 }
 
@@ -95,7 +102,7 @@ function entryAmount(entry: TrackedEntry): number {
 
 function dayKey(dateStr: string): string {
   const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 function dayLabel(dateStr: string): string {
@@ -103,6 +110,7 @@ function dayLabel(dateStr: string): string {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(dateStr));
 }
 
@@ -111,6 +119,7 @@ function shortDayLabel(dateStr: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(dateStr));
 }
 
@@ -229,7 +238,7 @@ type EditMode = 'duration' | 'times';
 
 function formatTimeInput(iso: string): string {
   const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 function EditEntryDialog({
