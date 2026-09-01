@@ -697,6 +697,7 @@ export function TrackedTimeReport({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [clientFilter, setClientFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
   const [taskQuery, setTaskQuery] = useState('');
   const showByPerson = teamMembers.length > 1;
 
@@ -716,6 +717,7 @@ export function TrackedTimeReport({
       if (end && started > end) return false;
       if (clientFilter !== 'all' && e.client_name !== clientFilter)
         return false;
+      if (userFilter !== 'all' && e.user_id !== userFilter) return false;
       if (
         taskQuery.trim() &&
         !(e.task_title ?? '')
@@ -726,7 +728,15 @@ export function TrackedTimeReport({
       }
       return true;
     });
-  }, [entries, range, customStart, customEnd, clientFilter, taskQuery]);
+  }, [
+    entries,
+    range,
+    customStart,
+    customEnd,
+    clientFilter,
+    userFilter,
+    taskQuery,
+  ]);
 
   const totalMinutes = filtered.reduce(
     (sum, e) => sum + (e.duration_minutes ?? 0),
@@ -813,6 +823,12 @@ export function TrackedTimeReport({
   const maxProjectMinutes = byProject[0]?.minutes ?? 0;
   const maxPersonMinutes = byPerson[0]?.minutes ?? 0;
 
+  const userItems = useMemo(() => {
+    const map: Record<string, string> = { all: 'Everyone' };
+    for (const m of teamMembers) map[m.id] = m.name;
+    return map;
+  }, [teamMembers]);
+
   return (
     <div className='col-span-12 space-y-6'>
       <div className='flex items-center justify-between mt-8 mb-6 pl-5 pr-5 gap-2'>
@@ -882,6 +898,29 @@ export function TrackedTimeReport({
             </SelectContent>
           </Select>
         </div>
+
+        {showByPerson && (
+          <div className='space-y-1.5'>
+            <Label className='text-xs text-muted-foreground'>Team member</Label>
+            <Select
+              value={userFilter}
+              onValueChange={(v) => setUserFilter(v ?? 'all')}
+              items={userItems}
+            >
+              <SelectTrigger className='w-44'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>Everyone</SelectItem>
+                {teamMembers.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className='space-y-1.5'>
           <Label className='text-xs text-muted-foreground'>Task name</Label>
