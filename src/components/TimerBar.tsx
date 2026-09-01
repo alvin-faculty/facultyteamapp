@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   createManualEntry,
+  startMyTaskTimer,
   startTimer,
   stopTimer,
   type RunningTimeEntry,
@@ -150,11 +151,21 @@ function ManualEntryDialog({
   }
 
   function submit() {
+    const hoursNum = Number(hours);
+    if (!projectId || !date || !Number.isFinite(hoursNum) || hoursNum <= 0)
+      return;
+
+    const [year, month, day] = date.split('-').map(Number);
+    const started = new Date(year, month - 1, day, 9, 0, 0); // local time, real instant
+    const ended = new Date(
+      started.getTime() + Math.round(hoursNum * 60) * 60000,
+    );
+
     const formData = new FormData();
     formData.set('project_id', projectId);
     if (taskId) formData.set('task_id', taskId);
-    formData.set('date', date);
-    formData.set('hours', hours);
+    formData.set('started_at', started.toISOString());
+    formData.set('ended_at', ended.toISOString());
     formData.set('description', description);
     if (billable) formData.set('billable', 'on');
 
@@ -357,11 +368,16 @@ export function TimerBar({
           title='Continue'
           onClick={() =>
             startTransition(() =>
-              startTimer(
-                lastEntry.project_id,
-                lastEntry.task_id,
-                lastEntry.description ?? '',
-              ),
+              lastEntry.project_id
+                ? startTimer(
+                    lastEntry.project_id,
+                    lastEntry.task_id,
+                    lastEntry.description ?? '',
+                  )
+                : startMyTaskTimer(
+                    lastEntry.my_task_id!,
+                    lastEntry.description ?? '',
+                  ),
             )
           }
         >

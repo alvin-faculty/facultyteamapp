@@ -26,11 +26,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from 'lucide-react';
-import {
-  updateTimeEntry,
-  updateTimeEntryTimes,
-  deleteTimeEntry,
-} from '@/lib/actions/time-entries';
+import { updateTimeEntry, deleteTimeEntry } from '@/lib/actions/time-entries';
 import { profileColorClass } from '@/lib/profile-color';
 import { projectDotColorClass } from '@/lib/project-color';
 import {
@@ -75,6 +71,25 @@ const RANGE_LABELS: Record<RangeKey, string> = {
   all: 'All time',
 };
 
+function localDateTime(dateStr: string, timeStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = timeStr.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0);
+}
+
+function localDateWithTimeFrom(dateStr: string, sourceISO: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const source = new Date(sourceISO);
+  return new Date(
+    year,
+    month - 1,
+    day,
+    source.getHours(),
+    source.getMinutes(),
+    source.getSeconds(),
+  );
+}
+
 function rangeStart(range: RangeKey): Date | null {
   const now = new Date();
   if (range === 'today')
@@ -103,7 +118,7 @@ function dayLabel(dateStr: string): string {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(dateStr));
+  }).format(new Date(dateStr + 'T00:00:00'));
 }
 
 function shortDayLabel(dateStr: string): string {
@@ -111,7 +126,7 @@ function shortDayLabel(dateStr: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(dateStr));
+  }).format(new Date(dateStr + 'T00:00:00'));
 }
 
 interface GroupedEntry {
@@ -261,55 +276,47 @@ function EditEntryDialog({
   const [isPending, startTransition] = useTransition();
 
   function submit() {
+    let started: Date;
+    let ended: Date;
+
     if (mode === 'duration') {
       const hoursNum = Number(hours);
       if (!date || !Number.isFinite(hoursNum) || hoursNum <= 0) {
         toast.error('Please enter a valid date and duration');
         return;
       }
-
-      const formData = new FormData();
-      formData.set('date', date);
-      formData.set('hours', hours);
-      formData.set('description', description);
-      if (billable) formData.set('billable', 'on');
-
-      startTransition(async () => {
-        try {
-          await updateTimeEntry(entry.id, formData);
-          toast.success('Entry updated');
-          onOpenChange(false);
-        } catch (err) {
-          toast.error(
-            err instanceof Error ? err.message : 'Failed to update entry',
-          );
-        }
-      });
+      started = localDateWithTimeFrom(date, entry.started_at);
+      ended = new Date(started.getTime() + Math.round(hoursNum * 60) * 60000);
     } else {
       if (!date || !startTime || !endTime) {
         toast.error('Please enter a date, start time, and end time');
         return;
       }
-
-      const formData = new FormData();
-      formData.set('date', date);
-      formData.set('start_time', startTime);
-      formData.set('end_time', endTime);
-      formData.set('description', description);
-      if (billable) formData.set('billable', 'on');
-
-      startTransition(async () => {
-        try {
-          await updateTimeEntryTimes(entry.id, formData);
-          toast.success('Entry updated');
-          onOpenChange(false);
-        } catch (err) {
-          toast.error(
-            err instanceof Error ? err.message : 'Failed to update entry',
-          );
-        }
-      });
+      started = localDateTime(date, startTime);
+      ended = localDateTime(date, endTime);
+      if (ended <= started) {
+        toast.error('End time must be after start time');
+        return;
+      }
     }
+
+    const formData = new FormData();
+    formData.set('started_at', started.toISOString());
+    formData.set('ended_at', ended.toISOString());
+    formData.set('description', description);
+    if (billable) formData.set('billable', 'on');
+
+    startTransition(async () => {
+      try {
+        await updateTimeEntry(entry.id, formData);
+        toast.success('Entry updated');
+        onOpenChange(false);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to update entry',
+        );
+      }
+    });
   }
 
   const isValid =
