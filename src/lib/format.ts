@@ -12,16 +12,12 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-/** 12-hour clock time with AM/PM, e.g. "9:15 AM". Timestamps in this app are
- * constructed server-side with no real timezone conversion (the server always
- * runs in UTC and the date/time numbers are used as-is), so display must stay
- * in UTC too, or the time — and sometimes the date — shifts for viewers behind UTC. */
+/** 12-hour clock time with AM/PM, e.g. "9:15 AM", in the viewer's local timezone. */
 export function formatTimeOfDay(dateStr: string): string {
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    timeZone: 'UTC',
   }).format(new Date(dateStr));
 }
 
