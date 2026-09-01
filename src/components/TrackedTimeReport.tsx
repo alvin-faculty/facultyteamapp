@@ -51,6 +51,7 @@ export interface TrackedEntry {
   project_name: string | null;
   project_color: string | null;
   client_id: string | null;
+  client_name: string | null;
   task_id: string | null;
   task_title: string | null;
   my_task_id: string | null;
@@ -62,13 +63,14 @@ interface TeamMember {
   name: string;
 }
 
-type RangeKey = 'today' | 'week' | 'month' | 'all';
+type RangeKey = 'today' | 'week' | 'month' | 'all' | 'custom';
 
 const RANGE_LABELS: Record<RangeKey, string> = {
   today: 'Today',
   week: 'This week',
   month: 'This month',
   all: 'All time',
+  custom: 'Custom range',
 };
 
 function localDateTime(dateStr: string, timeStr: string): Date {
@@ -90,17 +92,35 @@ function localDateWithTimeFrom(dateStr: string, sourceISO: string): Date {
   );
 }
 
-function rangeStart(range: RangeKey): Date | null {
+function getRangeBounds(
+  range: RangeKey,
+  customStart: string,
+  customEnd: string,
+): { start: Date | null; end: Date | null } {
   const now = new Date();
-  if (range === 'today')
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (range === 'today') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      end: null,
+    };
+  }
   if (range === 'week') {
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(now.getFullYear(), now.getMonth(), diff);
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), diff),
+      end: null,
+    };
   }
-  if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-  return null;
+  if (range === 'month') {
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: null };
+  }
+  if (range === 'custom') {
+    const start = customStart ? new Date(customStart + 'T00:00:00') : null;
+    const end = customEnd ? new Date(customEnd + 'T23:59:59.999') : null;
+    return { start, end };
+  }
+  return { start: null, end: null };
 }
 
 function entryAmount(entry: TrackedEntry): number {
@@ -674,13 +694,39 @@ export function TrackedTimeReport({
 }) {
   const router = useRouter();
   const [range, setRange] = useState<RangeKey>('week');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [clientFilter, setClientFilter] = useState<string>('all');
+  const [taskQuery, setTaskQuery] = useState('');
   const showByPerson = teamMembers.length > 1;
 
+  const clientOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const e of entries) {
+      if (e.client_name) names.add(e.client_name);
+    }
+    return Array.from(names).sort();
+  }, [entries]);
+
   const filtered = useMemo(() => {
-    const start = rangeStart(range);
-    if (!start) return entries;
-    return entries.filter((e) => new Date(e.started_at) >= start);
-  }, [entries, range]);
+    const { start, end } = getRangeBounds(range, customStart, customEnd);
+    return entries.filter((e) => {
+      const started = new Date(e.started_at);
+      if (start && started < start) return false;
+      if (end && started > end) return false;
+      if (clientFilter !== 'all' && e.client_name !== clientFilter)
+        return false;
+      if (
+        taskQuery.trim() &&
+        !(e.task_title ?? '')
+          .toLowerCase()
+          .includes(taskQuery.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [entries, range, customStart, customEnd, clientFilter, taskQuery]);
 
   const totalMinutes = filtered.reduce(
     (sum, e) => sum + (e.duration_minutes ?? 0),
@@ -769,24 +815,83 @@ export function TrackedTimeReport({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex items-center justify-between mt-8 mb-12 pl-5 pr-5 gap-2'>
+      <div className='flex items-center justify-between mt-8 mb-6 pl-5 pr-5 gap-2'>
         <h1>Tracked Time</h1>
-        <Select
-          value={range}
-          onValueChange={(v) => setRange((v as RangeKey) ?? 'week')}
-          items={RANGE_LABELS}
-        >
-          <SelectTrigger className='w-36'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
-              <SelectItem key={key} value={key}>
-                {RANGE_LABELS[key]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      </div>
+
+      <div className='flex flex-wrap items-end gap-3 pl-5 pr-5'>
+        <div className='space-y-1.5'>
+          <Label className='text-xs text-muted-foreground'>Range</Label>
+          <Select
+            value={range}
+            onValueChange={(v) => setRange((v as RangeKey) ?? 'week')}
+            items={RANGE_LABELS}
+          >
+            <SelectTrigger className='w-36'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {RANGE_LABELS[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {range === 'custom' && (
+          <>
+            <div className='space-y-1.5'>
+              <Label className='text-xs text-muted-foreground'>From</Label>
+              <Input
+                type='date'
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className='w-36'
+              />
+            </div>
+            <div className='space-y-1.5'>
+              <Label className='text-xs text-muted-foreground'>To</Label>
+              <Input
+                type='date'
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className='w-36'
+              />
+            </div>
+          </>
+        )}
+
+        <div className='space-y-1.5'>
+          <Label className='text-xs text-muted-foreground'>Client</Label>
+          <Select
+            value={clientFilter}
+            onValueChange={(v) => setClientFilter(v ?? 'all')}
+          >
+            <SelectTrigger className='w-44'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All clients</SelectItem>
+              {clientOptions.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className='space-y-1.5'>
+          <Label className='text-xs text-muted-foreground'>Task name</Label>
+          <Input
+            value={taskQuery}
+            onChange={(e) => setTaskQuery(e.target.value)}
+            placeholder='Search tasks…'
+            className='w-44'
+          />
+        </div>
       </div>
 
       <div className='grid grid-cols-3 gap-4 pl-5 pr-5'>

@@ -18,7 +18,12 @@ interface TimeEntryRow {
   task_id: string | null;
   my_task_id: string | null;
   profiles: { name: string } | null;
-  projects: { name: string; color: string | null; client_id: string } | null;
+  projects: {
+    name: string;
+    color: string | null;
+    client_id: string;
+    clients: { name: string } | null;
+  } | null;
   tasks: { title: string } | null;
   my_tasks: { title: string | null } | null;
 }
@@ -30,7 +35,7 @@ export default async function MyTimePage() {
   const { data: entries } = await supabase
     .from('time_entries')
     .select(
-      'id, started_at, ended_at, duration_minutes, billable, rate_snapshot, description, user_id, project_id, task_id, my_task_id, profiles(name), projects(name, color, client_id), tasks(title), my_tasks(title)',
+      'id, started_at, ended_at, duration_minutes, billable, rate_snapshot, description, user_id, project_id, task_id, my_task_id, profiles(name), projects(name, color, client_id, clients(name)), tasks(title), my_tasks(title)',
     )
     .eq('user_id', profile.id)
     .not('ended_at', 'is', null)
@@ -52,6 +57,7 @@ export default async function MyTimePage() {
     project_name: e.projects?.name ?? 'Personal',
     project_color: e.projects?.color ?? null,
     client_id: e.projects?.client_id ?? null,
+    client_name: e.projects?.clients?.name ?? null,
     task_id: e.task_id,
     task_title: e.tasks?.title ?? e.my_tasks?.title ?? null,
     my_task_id: e.my_task_id,
