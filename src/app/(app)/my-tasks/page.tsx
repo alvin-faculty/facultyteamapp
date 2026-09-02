@@ -11,7 +11,9 @@ export default async function MyTasksPage() {
   const [{ data: myTasks }, { data: runningEntry }] = await Promise.all([
     supabase
       .from('my_tasks')
-      .select('*, tasks(title, project_id, projects(name, clients(name)))')
+      .select(
+        '*, tasks(title, project_id, high_priority, projects(name, clients(name)))',
+      )
       .eq('user_id', profile.id)
       .order('position'),
     supabase

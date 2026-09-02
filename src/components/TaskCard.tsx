@@ -196,15 +196,20 @@ export function TaskCard({
   );
 
   const title = (
-    <p
-      className={cn(
-        'text-[13px]',
-        indented ? 'text-muted-foreground' : 'font-medium',
-        task.completed && 'text-muted-foreground line-through',
+    <div className='flex items-center gap-1.5'>
+      {task.high_priority && (
+        <span className='size-1.5 shrink-0 rounded-full bg-destructive' />
       )}
-    >
-      {task.title}
-    </p>
+      <p
+        className={cn(
+          'text-[13px]',
+          indented ? 'text-muted-foreground' : 'font-medium',
+          task.completed && 'text-muted-foreground line-through',
+        )}
+      >
+        {task.title}
+      </p>
+    </div>
   );
 
   const timerControl = runningEntry !== undefined && (
