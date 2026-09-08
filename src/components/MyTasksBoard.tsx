@@ -37,6 +37,7 @@ import {
   PencilIcon,
   PlayIcon,
   SquareIcon,
+  FlagIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -417,7 +418,12 @@ function MyTaskCard({
         {...attributes}
       >
         <div className='flex items-start justify-between gap-2'>
-          <p className='text-sm'>{title}</p>
+          <div className='flex min-w-0 items-center gap-1'>
+            {isLinked && item.tasks?.high_priority && (
+              <span className='size-1.5 shrink-0 rounded-full bg-destructive' />
+            )}
+            <p className='text-sm'>{title}</p>
+          </div>
           {!isLinked && (
             <div className='flex items-center gap-0.5'>
               <Button
@@ -578,7 +584,12 @@ function StatusBoard({
             category={category}
             items={localItems
               .filter((i) => i.status === col.id)
-              .sort((a, b) => a.position - b.position)}
+              .sort((a, b) => {
+                const aPriority = a.tasks?.high_priority ?? false;
+                const bPriority = b.tasks?.high_priority ?? false;
+                if (aPriority !== bPriority) return aPriority ? -1 : 1;
+                return a.position - b.position;
+              })}
             runningEntry={runningEntry}
           />
         ))}

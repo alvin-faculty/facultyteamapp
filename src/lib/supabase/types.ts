@@ -95,6 +95,7 @@ export interface Task {
   due_date: string | null;
   start_date: string | null;
   billable: boolean;
+  high_priority: boolean;
   position: number;
   created_at: string;
 }
@@ -136,6 +137,7 @@ export type MyTaskWithDetails = MyTask & {
   tasks?: {
     title: string;
     project_id: string;
+    high_priority: boolean;
     projects?: { name: string; clients?: { name: string } | null } | null;
   } | null;
 };

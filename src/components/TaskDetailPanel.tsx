@@ -27,7 +27,9 @@ import {
   updateTaskDescription,
   updateTaskDueDate,
   updateTaskStartDate,
+  updateTaskPriority,
 } from '@/lib/actions/tasks';
+import { sortByPriorityThen } from '@/lib/task-sort';
 import {
   assignTaskMember,
   unassignTaskMember,
@@ -56,6 +58,7 @@ import {
   Trash2Icon,
   UsersIcon,
   XIcon,
+  FlagIcon,
 } from 'lucide-react';
 import type {
   Profile,
@@ -352,6 +355,27 @@ export function TaskDetailPanel({
                   )}
                 </FieldRow>
 
+                <FieldRow icon={FlagIcon} label='Priority'>
+                  <div className='flex items-center gap-2'>
+                    <Checkbox
+                      checked={task.high_priority}
+                      disabled={isPending}
+                      onCheckedChange={(checked) =>
+                        startTransition(() =>
+                          updateTaskPriority(
+                            task.id,
+                            projectId,
+                            checked === true,
+                          ),
+                        )
+                      }
+                    />
+                    <span className='text-sm'>
+                      {task.high_priority ? 'High priority' : 'Normal priority'}
+                    </span>
+                  </div>
+                </FieldRow>
+
                 <FieldRow icon={DollarSignIcon} label='Billable'>
                   <div className='flex items-center gap-2'>
                     <Checkbox
@@ -446,7 +470,7 @@ export function TaskDetailPanel({
                   Subtasks
                 </p>
                 <div className='divide-y'>
-                  {subtasks.map((sub) => (
+                  {sortByPriorityThen(subtasks, () => 0).map((sub) => (
                     <div key={sub.id} className='flex items-center gap-2 py-2'>
                       <Checkbox
                         checked={sub.completed}

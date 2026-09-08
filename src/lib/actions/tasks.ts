@@ -173,3 +173,21 @@ export async function updateTaskDates(
   revalidatePath(`/projects/${projectId}`);
   revalidatePath('/timeline');
 }
+
+export async function updateTaskPriority(
+  taskId: string,
+  projectId: string,
+  highPriority: boolean,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ high_priority: highPriority })
+    .eq('id', taskId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/my-tasks');
+  revalidatePath('/timeline');
+}

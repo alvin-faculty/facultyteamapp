@@ -26,6 +26,7 @@ import type {
   TaskAssignee,
   TaskCommentWithAuthor,
 } from '@/lib/supabase/types';
+import { sortByPriorityThen } from '@/lib/task-sort';
 
 function DraggableTaskRow({
   task,
@@ -114,8 +115,9 @@ function Column({
       </div>
       <div className='flex-1 space-y-2 overflow-y-auto pr-1 pb-2'>
         {tasks.map((task) => {
-          const childTasks = allTasks.filter(
-            (t) => t.parent_task_id === task.id,
+          const childTasks = sortByPriorityThen(
+            allTasks.filter((t) => t.parent_task_id === task.id),
+            (a, b) => a.position - b.position,
           );
           return (
             <div key={task.id} className='space-y-1.5'>
@@ -264,9 +266,10 @@ export function KanbanBoard({
               key={section.id}
               section={section}
               sectionIndex={index}
-              tasks={topLevelTasks
-                .filter((t) => t.section_id === section.id)
-                .sort((a, b) => a.position - b.position)}
+              tasks={sortByPriorityThen(
+                topLevelTasks.filter((t) => t.section_id === section.id),
+                (a, b) => a.position - b.position,
+              )}
               allTasks={localTasks}
               projectId={projectId}
               assigneesByTask={assigneesByTask}
