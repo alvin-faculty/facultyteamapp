@@ -6,18 +6,19 @@ import { requireProfile } from '@/lib/current-user';
 import type { MyTaskCategory, MyTaskStatus } from '@/lib/supabase/types';
 
 export async function createMyTask(
+  targetUserId: string,
   category: MyTaskCategory,
   title: string,
   status: MyTaskStatus,
   notes?: string,
 ) {
-  const profile = await requireProfile();
+  await requireProfile();
   const supabase = await createSupabaseServerClient();
 
   const { data: last } = await supabase
     .from('my_tasks')
     .select('position')
-    .eq('user_id', profile.id)
+    .eq('user_id', targetUserId)
     .eq('category', category)
     .eq('status', status)
     .order('position', { ascending: false })
@@ -29,7 +30,7 @@ export async function createMyTask(
   const { error } = await supabase
     .from('my_tasks')
     .insert({
-      user_id: profile.id,
+      user_id: targetUserId,
       category,
       title,
       status,
