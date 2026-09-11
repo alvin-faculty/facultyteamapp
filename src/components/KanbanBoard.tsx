@@ -4,12 +4,14 @@ import { useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { TaskCard } from '@/components/TaskCard';
 import { TaskDetailPanel } from '@/components/TaskDetailPanel';
@@ -27,6 +29,31 @@ import type {
   TaskCommentWithAuthor,
 } from '@/lib/supabase/types';
 import { sortByPriorityThen } from '@/lib/task-sort';
+
+function TaskCardPreview({ task }: { task: Task }) {
+  return (
+    <div className='w-72 rounded-lg bg-background px-3 py-2.5 shadow-lg'>
+      <div className='flex items-start gap-2'>
+        <div className='mt-0.5 size-4 shrink-0 rounded border' />
+        <div className='min-w-0 flex-1 space-y-0.5'>
+          <div className='flex items-center gap-1.5'>
+            {task.high_priority && (
+              <span className='size-1.5 shrink-0 rounded-full bg-destructive' />
+            )}
+            <p
+              className={cn(
+                'text-[13px] font-medium',
+                task.completed && 'text-muted-foreground line-through',
+              )}
+            >
+              {task.title}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DraggableTaskRow({
   task,
@@ -54,7 +81,7 @@ function DraggableTaskRow({
           ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
           : undefined
       }
-      className={cn('touch-none', isDragging && 'z-10 opacity-50')}
+      className={cn('touch-none ', isDragging && 'opacity-0')}
       {...listeners}
       {...attributes}
     >
@@ -177,6 +204,7 @@ export function KanbanBoard({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() =>
     searchParams.get('task'),
   );
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [, startTransition] = useTransition();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -212,7 +240,13 @@ export function KanbanBoard({
       ? Math.round((completedTotal / topLevelTasks.length) * 100)
       : 0;
 
+  function handleDragStart(event: DragStartEvent) {
+    const task = localTasks.find((t) => t.id === event.active.id);
+    setActiveTask(task ?? null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveTask(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -259,7 +293,11 @@ export function KanbanBoard({
           </span>
         )}
       </div>
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className='flex h-[70vh] items-stretch gap-4 pb-2'>
           {sections.map((section, index) => (
             <Column
@@ -279,6 +317,9 @@ export function KanbanBoard({
           ))}
           <NewSectionButton projectId={projectId} />
         </div>
+        <DragOverlay>
+          {activeTask && <TaskCardPreview task={activeTask} />}
+        </DragOverlay>
       </DndContext>
       <TaskDetailPanel
         key={selectedTaskId ?? 'none'}

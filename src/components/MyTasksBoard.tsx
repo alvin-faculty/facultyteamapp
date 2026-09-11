@@ -1,28 +1,31 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
-import {
-  startTimer,
-  startMyTaskTimer,
-  stopTimer,
-  type RunningTimeEntry,
-} from '@/lib/actions/time-entries';
-import { useTimerDisplay } from '@/hooks/useTimerDisplay';
-import { InlineDurationEdit } from '@/components/InlineDurationEdit';
+import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -37,7 +40,6 @@ import {
   PencilIcon,
   PlayIcon,
   SquareIcon,
-  FlagIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -46,12 +48,19 @@ import {
   updateMyTaskStatus,
   deleteMyTask,
 } from '@/lib/actions/my-tasks';
+import {
+  startTimer,
+  stopTimer,
+  startMyTaskTimer,
+  type RunningTimeEntry,
+} from '@/lib/actions/time-entries';
+import { useTimerDisplay } from '@/hooks/useTimerDisplay';
+import { InlineDurationEdit } from '@/components/InlineDurationEdit';
 import type {
   MyTaskWithDetails,
   MyTaskStatus,
   MyTaskCategory,
 } from '@/lib/supabase/types';
-import { Textarea } from './ui/textarea';
 
 const STATUS_COLUMNS: { id: MyTaskStatus; label: string }[] = [
   { id: 'not_started', label: 'Not Started' },
@@ -59,135 +68,6 @@ const STATUS_COLUMNS: { id: MyTaskStatus; label: string }[] = [
   { id: 'waiting', label: 'Waiting' },
   { id: 'done', label: 'Done' },
 ];
-
-function AddTaskDialog({
-  category,
-  status,
-}: {
-  category: MyTaskCategory;
-  status: MyTaskStatus;
-}) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isPending, startTransition] = useTransition();
-
-  function submit() {
-    if (!title.trim()) return;
-    startTransition(async () => {
-      try {
-        await createMyTask(category, title.trim(), status, notes);
-        setTitle('');
-        setNotes('');
-        setOpen(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to add task');
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            type='button'
-            variant='ghost'
-            size='sm'
-            className='w-full justify-start text-muted-foreground'
-          >
-            <Plus className='size-3.5' />
-            Add task
-          </Button>
-        }
-      />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add task</DialogTitle>
-        </DialogHeader>
-        <div className='space-y-4'>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder='Task title'
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            autoFocus
-          />
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder='Notes (optional)'
-          />
-          <Button
-            type='button'
-            disabled={isPending || !title.trim()}
-            onClick={submit}
-            className='w-full'
-          >
-            Add task
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function EditTaskDialog({
-  item,
-  open,
-  onOpenChange,
-}: {
-  item: MyTaskWithDetails;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [title, setTitle] = useState(item.title ?? '');
-  const [notes, setNotes] = useState(item.notes ?? '');
-  const [isPending, startTransition] = useTransition();
-
-  function submit() {
-    if (!title.trim()) return;
-    startTransition(async () => {
-      try {
-        await updateMyTask(item.id, title.trim(), notes.trim());
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to save task');
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit task</DialogTitle>
-        </DialogHeader>
-        <div className='space-y-4'>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder='Task title'
-            autoFocus
-          />
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder='Notes (optional)'
-          />
-          <Button
-            type='button'
-            disabled={isPending || !title.trim()}
-            onClick={submit}
-            className='w-full'
-          >
-            Save
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -368,15 +248,179 @@ function FreeformTimerControl({
   );
 }
 
+function AddTaskDialog({
+  category,
+  status,
+  targetUserId,
+}: {
+  category: MyTaskCategory;
+  status: MyTaskStatus;
+  targetUserId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    if (!title.trim()) return;
+    startTransition(async () => {
+      try {
+        await createMyTask(
+          targetUserId,
+          category,
+          title.trim(),
+          status,
+          notes.trim(),
+        );
+        setTitle('');
+        setNotes('');
+        setOpen(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to add task');
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type='button'
+            variant='ghost'
+            size='sm'
+            className='w-full justify-start text-muted-foreground'
+          >
+            <Plus className='size-3.5' />
+            Add task
+          </Button>
+        }
+      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add task</DialogTitle>
+        </DialogHeader>
+        <div className='space-y-4'>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder='Task title'
+            autoFocus
+          />
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder='Notes (optional)'
+          />
+          <Button
+            type='button'
+            disabled={isPending || !title.trim()}
+            onClick={submit}
+            className='w-full'
+          >
+            Add task
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditTaskDialog({
+  item,
+  open,
+  onOpenChange,
+}: {
+  item: MyTaskWithDetails;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [title, setTitle] = useState(item.title ?? '');
+  const [notes, setNotes] = useState(item.notes ?? '');
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    if (!title.trim()) return;
+    startTransition(async () => {
+      try {
+        await updateMyTask(item.id, title.trim(), notes.trim());
+        onOpenChange(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to save task');
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit task</DialogTitle>
+        </DialogHeader>
+        <div className='space-y-4'>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder='Task title'
+            autoFocus
+          />
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder='Notes (optional)'
+          />
+          <Button
+            type='button'
+            disabled={isPending || !title.trim()}
+            onClick={submit}
+            className='w-full'
+          >
+            Save
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MyTaskCardPreview({ item }: { item: MyTaskWithDetails }) {
+  const isLinked = Boolean(item.project_task_id);
+  const title = isLinked
+    ? (item.tasks?.title ?? 'Untitled task')
+    : (item.title ?? 'Untitled');
+
+  return (
+    <div className='space-y-1 rounded-md border bg-background p-2.5 shadow-lg'>
+      <div className='flex min-w-0 items-center gap-1.5'>
+        {isLinked && item.tasks?.high_priority && (
+          <span className='size-1.5 shrink-0 rounded-full bg-destructive' />
+        )}
+        <p className='text-sm'>{title}</p>
+      </div>
+      {!isLinked && item.notes && (
+        <p className='line-clamp-2 text-xs text-muted-foreground'>
+          {item.notes}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MyTaskCard({
   item,
   runningEntry,
+  isOwner,
 }: {
   item: MyTaskWithDetails;
   runningEntry: RunningTimeEntry | null;
+  isOwner: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: item.id });
+    useDraggable({
+      id: item.id,
+      disabled: !isOwner,
+    });
   const [isPending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -385,7 +429,6 @@ function MyTaskCard({
     ? (item.tasks?.title ?? 'Untitled task')
     : (item.title ?? 'Untitled');
   const projectName = item.tasks?.projects?.name;
-  const clientName = item.tasks?.projects?.clients?.name;
 
   function remove() {
     startTransition(async () => {
@@ -411,20 +454,21 @@ function MyTaskCard({
             : undefined
         }
         className={cn(
-          'touch-none space-y-1 rounded-md border bg-background p-2.5',
-          isDragging && 'z-10 opacity-50',
+          'space-y-1 rounded-md border bg-background p-2.5',
+          isOwner && 'touch-none cursor-grab active:cursor-grabbing',
+          isDragging && 'opacity-0',
         )}
         {...listeners}
         {...attributes}
       >
         <div className='flex items-start justify-between gap-2'>
-          <div className='flex min-w-0 items-center gap-1'>
+          <div className='flex min-w-0 items-center gap-1.5'>
             {isLinked && item.tasks?.high_priority && (
               <span className='size-1.5 shrink-0 rounded-full bg-destructive' />
             )}
             <p className='text-sm'>{title}</p>
           </div>
-          {!isLinked && (
+          {isOwner && !isLinked && (
             <div className='flex items-center gap-0.5'>
               <Button
                 type='button'
@@ -453,7 +497,7 @@ function MyTaskCard({
             {item.notes}
           </p>
         )}
-        {!isLinked && (
+        {isOwner && !isLinked && (
           <div className='flex justify-end'>
             <FreeformTimerControl
               myTaskId={item.id}
@@ -469,19 +513,19 @@ function MyTaskCard({
               className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground'
             >
               <ExternalLinkIcon className='size-3' />
-              {clientName
-                ? `${clientName} — ${projectName ?? 'View project'}`
-                : (projectName ?? 'View project')}
+              {projectName ?? 'View project'}
             </Link>
-            <MyTaskTimerControl
-              projectTaskId={item.project_task_id!}
-              projectId={item.tasks.project_id}
-              runningEntry={runningEntry}
-            />
+            {isOwner && (
+              <MyTaskTimerControl
+                projectTaskId={item.project_task_id!}
+                projectId={item.tasks.project_id}
+                runningEntry={runningEntry}
+              />
+            )}
           </div>
         )}
       </div>
-      {!isLinked && (
+      {isOwner && !isLinked && (
         <EditTaskDialog
           item={item}
           open={editOpen}
@@ -498,12 +542,16 @@ function Column({
   category,
   items,
   runningEntry,
+  isOwner,
+  targetUserId,
 }: {
   status: MyTaskStatus;
   label: string;
   category: MyTaskCategory;
   items: MyTaskWithDetails[];
   runningEntry: RunningTimeEntry | null;
+  isOwner: boolean;
+  targetUserId: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -521,10 +569,19 @@ function Column({
       </div>
       <div className='flex-1 space-y-2 overflow-y-auto pr-1 pb-2'>
         {items.map((item) => (
-          <MyTaskCard key={item.id} item={item} runningEntry={runningEntry} />
+          <MyTaskCard
+            key={item.id}
+            item={item}
+            runningEntry={runningEntry}
+            isOwner={isOwner}
+          />
         ))}
       </div>
-      <AddTaskDialog category={category} status={status} />
+      <AddTaskDialog
+        category={category}
+        status={status}
+        targetUserId={targetUserId}
+      />
     </div>
   );
 }
@@ -533,13 +590,18 @@ function StatusBoard({
   category,
   items,
   runningEntry,
+  isOwner,
+  targetUserId,
 }: {
   category: MyTaskCategory;
   items: MyTaskWithDetails[];
   runningEntry: RunningTimeEntry | null;
+  isOwner: boolean;
+  targetUserId: string;
 }) {
   const [prevItems, setPrevItems] = useState(items);
   const [localItems, setLocalItems] = useState(items);
+  const [activeItem, setActiveItem] = useState<MyTaskWithDetails | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -549,7 +611,14 @@ function StatusBoard({
     setLocalItems(items);
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    const item = localItems.find((i) => i.id === event.active.id);
+    setActiveItem(item ?? null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveItem(null);
+    if (!isOwner) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -569,31 +638,51 @@ function StatusBoard({
     });
   }
 
+  function sortedFor(status: MyTaskStatus) {
+    return localItems
+      .filter((i) => i.status === status)
+      .sort((a, b) => {
+        const aPriority = a.tasks?.high_priority ?? false;
+        const bPriority = b.tasks?.high_priority ?? false;
+        if (aPriority !== bPriority) return aPriority ? -1 : 1;
+        return a.position - b.position;
+      });
+  }
+
+  const columns = STATUS_COLUMNS.map((col) => (
+    <Column
+      key={col.id}
+      status={col.id}
+      label={col.label}
+      category={category}
+      items={sortedFor(col.id)}
+      runningEntry={runningEntry}
+      isOwner={isOwner}
+      targetUserId={targetUserId}
+    />
+  ));
+
+  if (!isOwner) {
+    return (
+      <div className='flex items-stretch gap-4 overflow-x-auto pb-2'>
+        {columns}
+      </div>
+    );
+  }
+
   return (
     <DndContext
       id={`my-tasks-${category}`}
       sensors={sensors}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className='flex items-stretch gap-4 overflow-x-auto pb-2'>
-        {STATUS_COLUMNS.map((col) => (
-          <Column
-            key={col.id}
-            status={col.id}
-            label={col.label}
-            category={category}
-            items={localItems
-              .filter((i) => i.status === col.id)
-              .sort((a, b) => {
-                const aPriority = a.tasks?.high_priority ?? false;
-                const bPriority = b.tasks?.high_priority ?? false;
-                if (aPriority !== bPriority) return aPriority ? -1 : 1;
-                return a.position - b.position;
-              })}
-            runningEntry={runningEntry}
-          />
-        ))}
+      <div className='flex items-stretch gap-4 overflow-x-auto pb-2 pl-5 pr-5'>
+        {columns}
       </div>
+      <DragOverlay>
+        {activeItem && <MyTaskCardPreview item={activeItem} />}
+      </DragOverlay>
     </DndContext>
   );
 }
@@ -601,9 +690,13 @@ function StatusBoard({
 function PersonalList({
   items,
   runningEntry,
+  isOwner,
+  targetUserId,
 }: {
   items: MyTaskWithDetails[];
   runningEntry: RunningTimeEntry | null;
+  isOwner: boolean;
+  targetUserId: string;
 }) {
   return (
     <div className='flex h-[70vh] w-full max-w-md flex-col rounded-lg border bg-card p-2'>
@@ -618,11 +711,20 @@ function PersonalList({
           </p>
         ) : (
           items.map((item) => (
-            <MyTaskCard key={item.id} item={item} runningEntry={runningEntry} />
+            <MyTaskCard
+              key={item.id}
+              item={item}
+              runningEntry={runningEntry}
+              isOwner={isOwner}
+            />
           ))
         )}
       </div>
-      <AddTaskDialog category='personal' status='not_started' />
+      <AddTaskDialog
+        category='personal'
+        status='not_started'
+        targetUserId={targetUserId}
+      />
     </div>
   );
 }
@@ -630,27 +732,68 @@ function PersonalList({
 export function MyTasksBoard({
   items,
   runningEntry,
+  viewedUserId,
+  isOwner,
+  currentUserId,
+  teamMembers,
 }: {
   items: MyTaskWithDetails[];
   runningEntry: RunningTimeEntry | null;
+  viewedUserId: string;
+  isOwner: boolean;
+  currentUserId: string;
+  teamMembers: { id: string; name: string }[];
 }) {
+  const router = useRouter();
   const studioItems = items.filter((i) => i.category === 'studio');
   const sortItems = items.filter((i) => i.category === 'sort');
   const personalItems = items.filter((i) => i.category === 'personal');
+  const userItems = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const m of teamMembers)
+      map[m.id] = m.id === currentUserId ? 'My Tasks' : m.name;
+    return map;
+  }, [teamMembers, currentUserId]);
 
   return (
-    <Tabs defaultValue='studio'>
-      <TabsList>
-        <TabsTrigger value='studio'>Studio</TabsTrigger>
-        <TabsTrigger value='sort'>SORT</TabsTrigger>
-        <TabsTrigger value='personal'>Personal</TabsTrigger>
-      </TabsList>
-      <div className='pl-5 pr-5'>
+    <div className='space-y-4'>
+      <div className='flex justify-start pl-5 mb-8'>
+        <Select
+          value={viewedUserId}
+          onValueChange={(v) => {
+            if (!v) return;
+            router.push(
+              v === currentUserId ? '/my-tasks' : `/my-tasks?user=${v}`,
+            );
+          }}
+          items={userItems}
+        >
+          <SelectTrigger className='w-48 border-0 border-b '>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {teamMembers.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.id === currentUserId ? 'My Tasks' : m.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Tabs defaultValue='studio'>
+        <TabsList>
+          <TabsTrigger value='studio'>Studio</TabsTrigger>
+          <TabsTrigger value='sort'>SORT</TabsTrigger>
+          <TabsTrigger value='personal'>Personal</TabsTrigger>
+        </TabsList>
         <TabsContent value='studio'>
           <StatusBoard
             category='studio'
             items={studioItems}
             runningEntry={runningEntry}
+            isOwner={isOwner}
+            targetUserId={viewedUserId}
           />
         </TabsContent>
         <TabsContent value='sort'>
@@ -658,12 +801,19 @@ export function MyTasksBoard({
             category='sort'
             items={sortItems}
             runningEntry={runningEntry}
+            isOwner={isOwner}
+            targetUserId={viewedUserId}
           />
         </TabsContent>
         <TabsContent value='personal'>
-          <PersonalList items={personalItems} runningEntry={runningEntry} />
+          <PersonalList
+            items={personalItems}
+            runningEntry={runningEntry}
+            isOwner={isOwner}
+            targetUserId={viewedUserId}
+          />
         </TabsContent>
-      </div>
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }
