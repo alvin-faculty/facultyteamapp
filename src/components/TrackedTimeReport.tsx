@@ -831,7 +831,7 @@ export function TrackedTimeReport({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex items-center justify-between mt-8 mb-6 pl-5 pr-5 gap-2'>
+      <div className='flex items-center justify-between mt-5 mb-6 pl-5 pr-5 gap-2'>
         <h1>Tracked Time</h1>
       </div>
 

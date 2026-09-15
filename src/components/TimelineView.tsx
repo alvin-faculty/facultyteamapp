@@ -455,15 +455,15 @@ export function TimelineView({
 
   return (
     <div className='space-y-3'>
-      <div className='flex items-center justify-start pl-5 mb-12'>
-        <div className='inline-flex rounded-md border p-0.5'>
+      <div className='flex items-center justify-start pl-5 mb-6'>
+        <div className='inline-flex bg-card rounded-[0.75rem] border-transparent p-0.5'>
           {(['day', 'week', 'month'] as ZoomLevel[]).map((z) => (
             <button
               key={z}
               type='button'
               onClick={() => setZoom(z)}
               className={cn(
-                'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                'rounded-[0.75rem] px-2 py-1 heading-3 transition-colors cursor-pointer',
                 zoom === z
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -475,9 +475,9 @@ export function TimelineView({
         </div>
       </div>
 
-      <div className='flex overflow-hidden border'>
+      <div className='flex overflow-hidden pl-5'>
         {/* Sidebar */}
-        <div className='w-64 shrink-0 divide-y overflow-y-auto border-r bg-card'>
+        <div className='w-64 shrink-0 divide-y overflow-y-auto border-r rounded-tl-[0.75rem] rounded-bl-[10px] bg-card'>
           <div className='h-[73px] border-b' />
           {projects.map((project) => {
             const projectTasks = tasksByProject.get(project.id) ?? [];

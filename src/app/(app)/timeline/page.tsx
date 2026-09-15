@@ -16,7 +16,7 @@ export default async function TimelinePage() {
   ]);
 
   return (
-    <div className='col-span-12 space-y-6 mt-8'>
+    <div className='col-span-12 space-y-6 mt-5'>
       <h1 className='pl-5 pr-5'>Timeline</h1>
       <TimelineView
         projects={(projects as ProjectWithClient[]) ?? []}

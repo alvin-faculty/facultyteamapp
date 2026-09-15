@@ -17,15 +17,17 @@
   --font-weight-bold: 500;
   --text-body: 12px;
   --text-body--line-height: 19px;
+  --text-xs: 0.65rem;
+  --text-sm: 0.8rem;
   --text-h1: 20px;
   --text-h1--line-height: 24px;
-  --text-h2: 12px;
+  --text-h2: 0.8rem;
   --text-h2--line-height: 19px;
-  --text-h3: 12px;
+  --text-h3: 0.8rem;
   --text-h3--line-height: 14px;
-  --text-h4: 10px;
+  --text-h4: 0.65rem;
   --text-h4--line-height: 16px;
-  --text-h5: 10px;
+  --text-h5: 0.65rem;
   --text-h5--line-height: 12px;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -168,7 +170,7 @@
   @apply font-sans font-normal not-italic;
 }
 @utility heading-3 {
-  @apply font-sans font-medium not-italic;
+  @apply font-sans font-medium not-italic text-h3;
 }
 @utility heading-4 {
   @apply font-sans font-medium not-italic tracking-[0.07em] uppercase;

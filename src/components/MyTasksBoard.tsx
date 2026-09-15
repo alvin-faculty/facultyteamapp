@@ -429,6 +429,7 @@ function MyTaskCard({
     ? (item.tasks?.title ?? 'Untitled task')
     : (item.title ?? 'Untitled');
   const projectName = item.tasks?.projects?.name;
+  const clientName = item.tasks?.projects?.clients?.name;
 
   function remove() {
     startTransition(async () => {
@@ -513,7 +514,9 @@ function MyTaskCard({
               className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground'
             >
               <ExternalLinkIcon className='size-3' />
-              {projectName ?? 'View project'}
+              {clientName
+                ? `${clientName} — ${projectName ?? 'View project'}`
+                : (projectName ?? 'View project')}
             </Link>
             {isOwner && (
               <MyTaskTimerControl
