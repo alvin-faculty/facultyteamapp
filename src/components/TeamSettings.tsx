@@ -212,7 +212,7 @@ export function TeamSettings({
   return (
     <div className='col-span-12 space-y-6 pl-5 pr-5'>
       <div className='flex items-center justify-between'>
-        <div className='flex flex-col justify-between mt-8 mb-12 gap-12'>
+        <div className='flex flex-col justify-between mt-5 mb-12 gap-12'>
           <h1>Settings</h1>
         </div>
         <InviteMemberDialog />

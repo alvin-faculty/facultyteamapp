@@ -38,7 +38,7 @@ export default async function MyTasksPage({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex flex-col justify-between mt-8 mb-12 gap-12 pl-5 pr-5'>
+      <div className='flex flex-col justify-between mt-5 mb-12 gap-12 pl-5 pr-5'>
         <h1>My Tasks</h1>
       </div>
       <MyTasksBoard

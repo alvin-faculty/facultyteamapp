@@ -124,11 +124,11 @@ function BoardColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'w-72 shrink-0 space-y-3 rounded-lg p-1',
+        'w-72 shrink-0 space-y-3 rounded-lg',
         isOver && 'bg-muted/50',
       )}
     >
-      <div className='flex items-center gap-2 px-1'>
+      <div className='flex items-center gap-2'>
         <span
           className={cn('size-2 rounded-full', sectionColorClass(colorIndex))}
         />
@@ -220,7 +220,7 @@ export function ProjectExplorer({
 
   return (
     <div className='col-span-12 space-y-6'>
-      <div className='flex justify-between mt-8 mb-12 gap-12 pl-5 pr-5'>
+      <div className='flex justify-between mt-5 mb-12 gap-12 pl-5 pr-5'>
         <h1>Project Overview</h1>
         <div className='flex gap-2'>
           <NewClientDialog />
@@ -228,19 +228,19 @@ export function ProjectExplorer({
         </div>
       </div>
 
-      <div className='space-y-3'>
-        <div className='flex flex-wrap items-center gap-3 pl-5 pr-5'>
+      <div className='space-y-3 max-w-[70%]'>
+        <div className='flex flex-wrap items-center gap-5 pl-5 pr-5'>
           <div className='relative flex-1'>
-            <Search className='absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground' />
             <Input
-              placeholder='Search projects…'
+              placeholder='Search Projects'
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className='h-10 pl-9'
+              className='heading-3 pl-0 text-[#b6b3ad]'
             />
           </div>
 
-          <div className='inline-flex shrink-0 items-center gap-1'>
+          {/* Hidden status filter temporarily - May not need in future */}
+          <div className='hidden shrink-0 items-center gap-1'>
             <button
               onClick={() => setStatusFilter('all')}
               className={cn(
@@ -267,46 +267,47 @@ export function ProjectExplorer({
               </button>
             ))}
           </div>
-        </div>
+          {/* End hidden status filter */}
 
-        <div className='flex flex-wrap items-center gap-3 pl-5 pr-5'>
-          <Select
-            value={clientFilter}
-            onValueChange={(v) => setClientFilter(v ?? 'all')}
-            items={{
-              all: 'All clients',
-              ...Object.fromEntries(clients.map((c) => [c.id, c.name])),
-            }}
-          >
-            <SelectTrigger className='w-44'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>All clients</SelectItem>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className='flex flex-wrap items-center gap-5'>
+            <Select
+              value={clientFilter}
+              onValueChange={(v) => setClientFilter(v ?? 'all')}
+              items={{
+                all: 'All clients',
+                ...Object.fromEntries(clients.map((c) => [c.id, c.name])),
+              }}
+            >
+              <SelectTrigger className='w-44'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All clients</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={sortKey}
-            onValueChange={(v) => setSortKey((v ?? 'name') as SortKey)}
-            items={SORT_LABELS}
-          >
-            <SelectTrigger className='w-44'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {SORT_LABELS[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={sortKey}
+              onValueChange={(v) => setSortKey((v ?? 'name') as SortKey)}
+              items={SORT_LABELS}
+            >
+              <SelectTrigger className='w-44'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {SORT_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -314,13 +315,13 @@ export function ProjectExplorer({
         <TabsList>
           <TabsTrigger
             value='list'
-            className='text-xs data-active:bg-primary data-active:text-primary-foreground'
+            className=' data-active:bg-primary data-active:text-primary-foreground'
           >
             List view
           </TabsTrigger>
           <TabsTrigger
             value='board'
-            className='text-xs data-active:bg-primary data-active:text-primary-foreground'
+            className='data-active:bg-primary data-active:text-primary-foreground'
           >
             Board view
           </TabsTrigger>
@@ -376,7 +377,7 @@ export function ProjectExplorer({
             )}
           </TabsContent>
 
-          <TabsContent value='board' className='pt-4'>
+          <TabsContent value='board' className='space-y-6 pt-4'>
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <div className='flex gap-4 overflow-x-auto pb-2'>
                 {columnsToShow.map((status) => (
